@@ -21,26 +21,22 @@ const memSize = 4096
 type pdp8 struct {
 	// NOTE: Using uint rather than int because of right shifting
 	// TODO: consider creating a word type to better encapsulate this?
-	mem  [memSize]uint // Memory
-	pc   uint          // Program counter
-	ir   uint          // Instruction register
-	sr   uint          // Switch register
-	ac   uint          // Accumulator register 13th bit is Link flag
-	ien  bool          // Whether interrupts are enabled
-	keyb *keyboard     // Keyboard device
+	mem     [memSize]uint // Memory
+	pc      uint          // Program counter
+	ir      uint          // Instruction register
+	sr      uint          // Switch register
+	ac      uint          // Accumulator register 13th bit is Link flag
+	ien     bool          // Whether interrupts are enabled
+	devices []device      // Devices for IOT
 }
 
 // TODO: Put this in a separate package as New
-func newPdp8(k *keyboard) *pdp8 {
+func newPdp8() *pdp8 {
 	p := &pdp8{}
 	p.pc = 0o200
 	p.sr = 0
 	p.ac = 0
-	p.keyb = k // TODO: Create a devices struct/array
 	return p
-}
-
-func (p *pdp8) init() {
 }
 
 // Returns the lower 12-bits
@@ -155,6 +151,11 @@ func (p *pdp8) load(filename string) error {
 	return nil
 }
 
+func (p *pdp8) regDevice(d device) {
+	// TODO: check device number conflicts
+	p.devices = append(p.devices, d)
+}
+
 func usage(errMsg string) {
 	fmt.Fprintf(os.Stderr, "Error: %s\r\n", errMsg)
 	fmt.Fprintf(os.Stderr, "Usage: %s binrimfile ?pc? ?sr? ?-v?\r\n", os.Args[0])
@@ -167,20 +168,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	k, err := newKeyboard()
+	_tty, err := newTty()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\r\n", err)
 		os.Exit(1)
 	}
-	defer k.close()
-	p := newPdp8(k)
+	defer _tty.close() // TODO: call this from within pdp?
+	p := newPdp8()
+	p.regDevice(_tty)
 
 	if err := p.load(os.Args[1]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\r\n", err)
 		os.Exit(1)
 	}
-
-	p.init()
 
 	if len(os.Args) >= 3 {
 		pc, err := strconv.ParseInt(os.Args[2], 8, 0)
@@ -299,7 +299,6 @@ func (p *pdp8) execute(opCode uint, opAddr uint) error {
 
 // IOT instruction
 func (p *pdp8) iot() error {
-	var keys string
 	var err error
 	device := (p.ir >> 3) & 0o77
 	iotOp := p.ir & 0o7
@@ -313,38 +312,13 @@ func (p *pdp8) iot() error {
 		default:
 			// TODO: Report an unknown op?
 		}
-	case 0o3: // Keyboard
-		// NOTE: Operations are executed from right bit to left
-		if (p.ir & 0o1) != 0 { // KSF - Skip if ready
-			if p.keyb.isKeyWaiting() {
-				p.pc = mask(p.pc + 1)
+	default:
+		for _, d := range p.devices {
+			p.pc, p.ac, err = d.iot(p.ir, p.pc, p.ac)
+			if err != nil {
+				return err
+				// TODO: add context
 			}
-		}
-		if (p.ir & 0o4) != 0 { // KRS - Read static
-			keys, err = p.keyb.getKey()
-			// TODO: rename keys
-			if keys[0] == 0x1C { // Exit on CTRL-\
-				fmt.Println("Quit")
-				os.Exit(0)
-				// TODO: use a flag to exit nicely
-			}
-			// Put the key in AC without changing L
-			p.ac = (p.ac & 0o10000) | uint(keys[0])
-		}
-	case 0o4: // Teleprinter
-		// NOTE: Operations are executed from right bit to left
-		if (p.ir & 0o1) != 0 { // TSF  - Skip if ready
-			// Assume we'll always be ready as we
-			// are using a fast display for output
-			p.pc = mask(p.pc + 1)
-		}
-		if (p.ir & 0o2) != 0 { // TCF  - Clear Flag
-			// TODO: Implement flags
-		}
-		if (p.ir & 0o4) != 0 { // TPC  - Print static
-			// Output lower 7 bits of accumulator
-			// TODO: Why not 8 bits (0o377) ?
-			fmt.Printf("%c", p.ac&0o177)
 		}
 	}
 	return err
