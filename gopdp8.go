@@ -26,6 +26,7 @@ type pdp8 struct {
 	ir            uint          // Instruction register
 	sr            uint          // Switch register
 	ac            uint          // Accumulator register 13th bit is Link flag
+	mq            uint          // Multiplier Quotient
 	ien           bool          // Whether interrupts are enabled
 	devices       []device      // Devices for IOT
 	deviceNumbers []int         // The device numbers currently registered
@@ -402,19 +403,18 @@ func (p *pdp8) opr() {
 			fmt.Printf("\r\nHALT PC: %04o  AC:  %04o", p.pc, mask(p.ac))
 			// TODO: temporary cludge, need to return something
 		}
-	} else { // group 3
-		//TODO: Implement Group 3 instructions
-		fmt.Println("Group 3 instructions not implemented")
-		/*
-		   Word t = mq;
-		   if (ir & 0200) // CLA
-		       ac &= 010000;
-		   if (ir & 020) { // MQL
-		       mq = ac & 07777;
-		       ac &= 010000;
-		   }
-		   if (ir & 0100)
-		       ac |= t;
-		*/
+	} else { // Group 3
+		// We store MQ so that MQA and MQL can exchange MQ and AC
+		t := p.mq
+		if (p.ir & 0o201) != 0 { // CLA
+			p.ac &= 0o10000
+		}
+		if (p.ir & 0o21) != 0 { // MQL
+			p.mq = p.ac & 0o7777
+			p.ac &= 0o10000
+		}
+		if (p.ir & 0o101) != 0 { // MQA
+			p.ac |= t
+		}
 	}
 }
