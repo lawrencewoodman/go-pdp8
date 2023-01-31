@@ -89,9 +89,8 @@ func (t *tty) iot(ir uint, pc uint, ac uint) (uint, uint, error) {
 				os.Exit(0)
 				// TODO: use a flag to exit nicely
 			}
-			// Put the key in AC without changing L
-			ac = (ac & 0o10000) | uint(key[0])
-			// TODO: OR the key with the lower 8 bits of AC
+			// OR the key with the lower 8 bits of AC without changing L
+			ac = (ac & 0o10377) | uint(key[0])
 		}
 	case 0o4: // Teleprinter
 		if (ir & 0o1) != 0 { // TSF  - Skip if ready
