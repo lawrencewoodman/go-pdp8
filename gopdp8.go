@@ -247,25 +247,27 @@ func (p *pdp8) fetch() (opCode uint, opAddr uint) {
 
 func (p *pdp8) run() error {
 	var err error
-	// TODO: Face interrupt every 65536 ops
-	// TODO: remove this or implement proper checks on devices
-	// TODO: to interrupt as soon as possible
-	intCounter := 65536
+	intPollCounter := 65536
 
-	// TODO: Impelement proper interrupts from TTI/TTO
 	for {
-		// Handle fake interrupt if interrupts enabled
-		if p.ien && intCounter == 0 {
-			p.mem[0] = p.pc
-			p.pc = 1
-			p.ien = false
-			intCounter = 65536
+		// Poll for interrupts if interrupts enabled
+		if p.ien && intPollCounter == 0 {
+			intPollCounter = 65536
+			for _, d := range p.devices {
+				if d.interrupt() {
+					p.mem[0] = p.pc
+					p.pc = 1
+					p.ien = false
+					break
+				}
+			}
 		}
+		intPollCounter -= 1
+
 		opCode, opAddr := p.fetch()
 		if err = p.execute(opCode, opAddr); err != nil {
 			return err
 		}
-		intCounter = intCounter - 1
 	}
 	return nil
 }

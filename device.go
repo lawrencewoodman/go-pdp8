@@ -14,7 +14,9 @@ package main
 // TODO: Have some way of registering device numbers so we don't
 // TODO: don't have multiple devices with the same number
 type device interface {
-	// Returns PC, AC
+	// Is an interrupt raised?
+	interrupt() bool
+	// Returns PC, AC, error
 	iot(ir uint, pc uint, ac uint) (uint, uint, error)
 	// Close the device when finished with
 	// TODO: Check if close best name

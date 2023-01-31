@@ -16,7 +16,10 @@ import (
 )
 
 type tty struct {
-	rawC *rawConsole
+	ttiReadyFlag     bool // TTI keyboard
+	ttoReadyFlag     bool // TTO printer
+	interruptWaiting bool // If an interrupt is waiting to be processed
+	rawC             *rawConsole
 }
 
 func newTty() (*tty, error) {
@@ -33,18 +36,44 @@ func (t *tty) close() {
 	t.rawC.close()
 }
 
+// Return if there is an interrupt raised
+func (t *tty) interrupt() bool {
+	t.poll()
+	defer func() { t.interruptWaiting = false }()
+	return t.interruptWaiting
+}
+
+// Checks for activity on device
+func (t *tty) poll() {
+	if !t.ttiReadyFlag {
+		if t.rawC.isKeyWaiting() {
+			t.interruptWaiting = true
+			t.ttiReadyFlag = true
+			return
+		}
+	}
+	if t.ttoReadyFlag {
+		t.interruptWaiting = true
+	}
+}
+
 func (t *tty) iot(ir uint, pc uint, ac uint) (uint, uint, error) {
 	var key string
 	var err error
 
+	// NOTE: Operations are executed from right bit to left
 	device := (ir >> 3) & 0o77
 	switch device {
 	case 0o3: // Keyboard
-		// NOTE: Operations are executed from right bit to left
 		if (ir & 0o1) != 0 { // KSF - Skip if ready
-			if t.rawC.isKeyWaiting() {
+			t.poll()
+			if t.ttiReadyFlag {
 				pc = mask(pc + 1)
 			}
+		}
+		if (ir & 0o2) != 0 { // KCC - Clear Flag
+			t.ttiReadyFlag = false
+			ac = (ac & 0o10000) // Zero AC but keep L
 		}
 		if (ir & 0o4) != 0 { // KRS - Read static
 			key, err = t.rawC.getKey()
@@ -58,21 +87,22 @@ func (t *tty) iot(ir uint, pc uint, ac uint) (uint, uint, error) {
 			}
 			// Put the key in AC without changing L
 			ac = (ac & 0o10000) | uint(key[0])
+			// TODO: OR the key with the lower 8 bits of AC
 		}
 	case 0o4: // Teleprinter
-		// NOTE: Operations are executed from right bit to left
 		if (ir & 0o1) != 0 { // TSF  - Skip if ready
-			// Assume we'll always be ready as we
-			// are using a fast display for output
-			pc = mask(pc + 1)
+			if t.ttoReadyFlag {
+				pc = mask(pc + 1)
+			}
 		}
 		if (ir & 0o2) != 0 { // TCF  - Clear Flag
-			// TODO: Implement flags
+			t.ttoReadyFlag = false
 		}
 		if (ir & 0o4) != 0 { // TPC  - Print static
 			// Output lower 7 bits of accumulator
 			// TODO: Why not 8 bits (0o377) ?
 			fmt.Printf("%c", ac&0o177)
+			t.ttoReadyFlag = true
 		}
 	}
 	return pc, ac, err
