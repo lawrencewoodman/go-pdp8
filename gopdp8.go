@@ -290,7 +290,7 @@ func (p *pdp8) execute(opCode uint, opAddr uint) error {
 	var err error
 	switch opCode {
 	case 0: // AND
-		p.ac &= p.mem[opAddr] | 010000
+		p.ac &= p.mem[opAddr] | 0o10000
 	case 1: // TAD
 		p.ac = lmask(p.ac + p.mem[opAddr])
 	case 2: // ISZ
@@ -300,7 +300,7 @@ func (p *pdp8) execute(opCode uint, opAddr uint) error {
 		}
 	case 3: // DCA
 		p.mem[opAddr] = mask(p.ac)
-		p.ac &= 010000
+		p.ac &= 0o10000
 	case 4: // JMS
 		p.mem[opAddr] = p.pc
 		p.pc = mask(opAddr + 1)
