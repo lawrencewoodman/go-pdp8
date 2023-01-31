@@ -61,7 +61,7 @@ func (t *tty) deviceNumbers() []int {
 	return []int{0o3, 0o4}
 }
 
-func (t *tty) iot(ir uint, pc uint, ac uint) (uint, uint, error) {
+func (t *tty) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 	var key string
 	var err error
 
@@ -77,12 +77,12 @@ func (t *tty) iot(ir uint, pc uint, ac uint) (uint, uint, error) {
 		}
 		if (ir & 0o2) != 0 { // KCC - Clear Flag
 			t.ttiReadyFlag = false
-			ac = (ac & 0o10000) // Zero AC but keep L
+			lac = (lac & 0o10000) // Zero AC but keep L
 		}
 		if (ir & 0o4) != 0 { // KRS - Read static
 			key, err = t.rawC.getKey()
 			if err != nil {
-				return pc, ac, err
+				return pc, lac, err
 			}
 			if key[0] == 0x1C { // Exit on CTRL-\
 				fmt.Println("Quit")
@@ -90,7 +90,7 @@ func (t *tty) iot(ir uint, pc uint, ac uint) (uint, uint, error) {
 				// TODO: use a flag to exit nicely
 			}
 			// OR the key with the lower 8 bits of AC without changing L
-			ac = (ac & 0o10377) | uint(key[0])
+			lac = (lac & 0o10377) | uint(key[0])
 		}
 	case 0o4: // Teleprinter
 		if (ir & 0o1) != 0 { // TSF  - Skip if ready
@@ -104,9 +104,9 @@ func (t *tty) iot(ir uint, pc uint, ac uint) (uint, uint, error) {
 		if (ir & 0o4) != 0 { // TPC  - Print static
 			// Output lower 7 bits of accumulator
 			// TODO: Why not 8 bits (0o377) ?
-			fmt.Printf("%c", ac&0o177)
+			fmt.Printf("%c", lac&0o177)
 			t.ttoReadyFlag = true
 		}
 	}
-	return pc, ac, err
+	return pc, lac, err
 }

@@ -25,7 +25,7 @@ type pdp8 struct {
 	pc            uint          // Program counter
 	ir            uint          // Instruction register
 	sr            uint          // Switch register
-	ac            uint          // Accumulator register 13th bit is Link flag
+	lac           uint          // Accumulator register 13th bit is Link flag
 	mq            uint          // Multiplier Quotient
 	ien           bool          // Whether interrupts are enabled
 	devices       []device      // Devices for IOT
@@ -37,7 +37,7 @@ func newPdp8() *pdp8 {
 	p := &pdp8{}
 	p.pc = 0o200
 	p.sr = 0
-	p.ac = 0
+	p.lac = 0
 	return p
 }
 
@@ -253,7 +253,7 @@ func (p *pdp8) fetch() (opCode uint, opAddr uint) {
 	// TODO: This is wrong because -v could be passed earlier without
 	// TODO: pc or sr
 	if len(os.Args) >= 5 {
-		fmt.Printf("PC: %04o  IR:  %04o  AC: %04o\r\n", p.pc, p.ir, p.ac)
+		fmt.Printf("PC: %04o  IR:  %04o  LAC: %05o\r\n", p.pc, p.ir, p.lac)
 	}
 
 	p.pc = mask(p.pc + 1)
@@ -291,17 +291,17 @@ func (p *pdp8) execute(opCode uint, opAddr uint) error {
 	var err error
 	switch opCode {
 	case 0: // AND
-		p.ac &= p.mem[opAddr] | 0o10000
+		p.lac &= p.mem[opAddr] | 0o10000
 	case 1: // TAD
-		p.ac = lmask(p.ac + p.mem[opAddr])
+		p.lac = lmask(p.lac + p.mem[opAddr])
 	case 2: // ISZ
 		p.mem[opAddr] = mask(p.mem[opAddr] + 1)
 		if p.mem[opAddr] == 0 {
 			p.pc = mask(p.pc + 1)
 		}
 	case 3: // DCA
-		p.mem[opAddr] = mask(p.ac)
-		p.ac &= 0o10000
+		p.mem[opAddr] = mask(p.lac)
+		p.lac &= 0o10000
 	case 4: // JMS
 		p.mem[opAddr] = p.pc
 		p.pc = mask(opAddr + 1)
@@ -332,7 +332,7 @@ func (p *pdp8) iot() error {
 		}
 	default:
 		for _, d := range p.devices {
-			p.pc, p.ac, err = d.iot(p.ir, p.pc, p.ac)
+			p.pc, p.lac, err = d.iot(p.ir, p.pc, p.lac)
 			if err != nil {
 				return err
 				// TODO: add context
@@ -347,44 +347,44 @@ func (p *pdp8) opr() {
 	// TODO: Check order as well as AND/OR combinations
 	if (p.ir & 0o400) == 0 { // Group 1
 		if (p.ir & 0o200) != 0 { // CLA
-			p.ac = p.ac & 0o10000
+			p.lac = p.lac & 0o10000
 		}
 		if (p.ir & 0o100) != 0 { // CLL
-			p.ac = p.ac & 0o7777
+			p.lac = p.lac & 0o7777
 		}
 		if (p.ir & 0o40) != 0 { // CMA
-			p.ac = p.ac ^ 0o7777
+			p.lac = p.lac ^ 0o7777
 		}
 		if (p.ir & 0o20) != 0 { // CML
-			p.ac = p.ac ^ 0o10000
+			p.lac = p.lac ^ 0o10000
 		}
 		if (p.ir & 0o1) != 0 { // IAC
-			p.ac = lmask(p.ac + 1)
+			p.lac = lmask(p.lac + 1)
 		}
 		switch p.ir & 0o16 {
 		case 0o12: // RTR
-			p.ac = lmask((p.ac >> 1) | (p.ac << 12))
-			p.ac = lmask((p.ac >> 1) | (p.ac << 12))
+			p.lac = lmask((p.lac >> 1) | (p.lac << 12))
+			p.lac = lmask((p.lac >> 1) | (p.lac << 12))
 		case 0o10: // RAR
-			p.ac = lmask((p.ac >> 1) | (p.ac << 12))
+			p.lac = lmask((p.lac >> 1) | (p.lac << 12))
 		case 0o6: // RTL
-			p.ac = lmask((p.ac >> 12) | (p.ac << 1))
-			p.ac = lmask((p.ac >> 12) | (p.ac << 1))
+			p.lac = lmask((p.lac >> 12) | (p.lac << 1))
+			p.lac = lmask((p.lac >> 12) | (p.lac << 1))
 		case 0o4: // RAL
-			p.ac = lmask((p.ac >> 12) | (p.ac << 1))
+			p.lac = lmask((p.lac >> 12) | (p.lac << 1))
 		case 0o2: // BSW
 			// TODO: Should this be able to be called with
 			// TODO: one of: RTR, RAR, RTL, RAL
-			p.ac = (p.ac & 0o10000) |
-				((p.ac >> 6) & 0o77) | ((p.ac << 6) & 0o7700)
+			p.lac = (p.lac & 0o10000) |
+				((p.lac >> 6) & 0o77) | ((p.lac << 6) & 0o7700)
 		}
 	} else if (p.ir & 0o1) == 0 { // Group 2
 		var sv uint
 		// SMA, SPA, SZA, SNA, SNL, SZL
 		// TODO: Split this out to make it clearer
-		sc := ((p.ir&0o100) != 0 && (p.ac&0o4000) != 0) ||
-			((p.ir&0o40) != 0 && (p.ac&0o7777) == 0) ||
-			(p.ir&0o20) != 0 && (p.ac&0o10000) != 0
+		sc := ((p.ir&0o100) != 0 && (p.lac&0o4000) != 0) ||
+			((p.ir&0o40) != 0 && (p.lac&0o7777) == 0) ||
+			(p.ir&0o20) != 0 && (p.lac&0o10000) != 0
 		if sc {
 			sv = 0
 		} else {
@@ -394,27 +394,27 @@ func (p *pdp8) opr() {
 			p.pc = mask(p.pc + 1)
 		}
 		if (p.ir & 0o200) != 0 { // CLA
-			p.ac &= 0o10000
+			p.lac &= 0o10000
 		}
 		if (p.ir & 0o4) != 0 { // OSR
-			p.ac |= p.sr
+			p.lac |= p.sr
 		}
 		if (p.ir & 0o2) != 0 { // HLT
-			fmt.Printf("\r\nHALT PC: %04o  AC:  %04o", p.pc, mask(p.ac))
+			fmt.Printf("\r\nHALT PC: %04o  LAC:  %05o", p.pc, p.lac)
 			// TODO: temporary cludge, need to return something
 		}
 	} else { // Group 3
 		// We store MQ so that MQA and MQL can exchange MQ and AC
 		t := p.mq
 		if (p.ir & 0o201) != 0 { // CLA
-			p.ac &= 0o10000
+			p.lac &= 0o10000
 		}
 		if (p.ir & 0o21) != 0 { // MQL
-			p.mq = p.ac & 0o7777
-			p.ac &= 0o10000
+			p.mq = p.lac & 0o7777
+			p.lac &= 0o10000
 		}
 		if (p.ir & 0o101) != 0 { // MQA
-			p.ac |= t
+			p.lac |= t
 		}
 	}
 }

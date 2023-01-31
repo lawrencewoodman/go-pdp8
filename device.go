@@ -16,8 +16,8 @@ package main
 type device interface {
 	// Is an interrupt raised?
 	interrupt() bool
-	// Returns PC, AC, error
-	iot(ir uint, pc uint, ac uint) (uint, uint, error)
+	// Returns PC, LAC, error
+	iot(ir uint, pc uint, lac uint) (uint, uint, error)
 	// Return a slice of device numbers for the device
 	deviceNumbers() []int
 	// Close the device when finished with
