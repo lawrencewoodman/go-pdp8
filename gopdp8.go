@@ -147,6 +147,7 @@ func (p *pdp8) load(filename string) error {
 		fmt.Printf("OK: %04o\r\n", checksum)
 	} else {
 		fmt.Printf("FAIL: %04o, SHOULD BE: %04o\r\n", checksum, mask(c))
+		// TODO: What to do if fails?
 	}
 	return nil
 }
@@ -382,7 +383,7 @@ func (p *pdp8) opr() {
 			p.ac |= p.sr
 		}
 		if (p.ir & 0o2) != 0 { // HLT
-			fmt.Printf("\r\nHALT %04o", mask(p.ac))
+			fmt.Printf("\r\nHALT PC: %04o  AC:  %04o", p.pc, mask(p.ac))
 			// TODO: temporary cludge, need to return something
 			os.Exit(2)
 		}
