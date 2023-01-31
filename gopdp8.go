@@ -21,13 +21,14 @@ const memSize = 4096
 type pdp8 struct {
 	// NOTE: Using uint rather than int because of right shifting
 	// TODO: consider creating a word type to better encapsulate this?
-	mem     [memSize]uint // Memory
-	pc      uint          // Program counter
-	ir      uint          // Instruction register
-	sr      uint          // Switch register
-	ac      uint          // Accumulator register 13th bit is Link flag
-	ien     bool          // Whether interrupts are enabled
-	devices []device      // Devices for IOT
+	mem           [memSize]uint // Memory
+	pc            uint          // Program counter
+	ir            uint          // Instruction register
+	sr            uint          // Switch register
+	ac            uint          // Accumulator register 13th bit is Link flag
+	ien           bool          // Whether interrupts are enabled
+	devices       []device      // Devices for IOT
+	deviceNumbers []int         // The device numbers currently registered
 }
 
 // TODO: Put this in a separate package as New
@@ -147,14 +148,24 @@ func (p *pdp8) load(filename string) error {
 		fmt.Printf("OK: %04o\r\n", checksum)
 	} else {
 		fmt.Printf("FAIL: %04o, SHOULD BE: %04o\r\n", checksum, mask(c))
+		os.Exit(1)
 		// TODO: What to do if fails?
 	}
 	return nil
 }
 
-func (p *pdp8) regDevice(d device) {
-	// TODO: check device number conflicts
+func (p *pdp8) regDevice(d device) error {
+	newDeviceNumbers := d.deviceNumbers()
+	for _, n1 := range newDeviceNumbers {
+		for _, n2 := range p.deviceNumbers {
+			if n1 == n2 {
+				return fmt.Errorf("device number conflict: %02o", n1)
+			}
+		}
+		p.deviceNumbers = append(p.deviceNumbers, n1)
+	}
 	p.devices = append(p.devices, d)
+	return nil
 }
 
 func usage(errMsg string) {
@@ -176,7 +187,10 @@ func main() {
 	}
 	defer _tty.close() // TODO: call this from within pdp?
 	p := newPdp8()
-	p.regDevice(_tty)
+	if err := p.regDevice(_tty); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\r\n", err)
+		os.Exit(1)
+	}
 
 	if err := p.load(os.Args[1]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\r\n", err)
@@ -387,7 +401,6 @@ func (p *pdp8) opr() {
 		if (p.ir & 0o2) != 0 { // HLT
 			fmt.Printf("\r\nHALT PC: %04o  AC:  %04o", p.pc, mask(p.ac))
 			// TODO: temporary cludge, need to return something
-			os.Exit(2)
 		}
 	} else { // group 3
 		//TODO: Implement Group 3 instructions

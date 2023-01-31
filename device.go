@@ -18,6 +18,8 @@ type device interface {
 	interrupt() bool
 	// Returns PC, AC, error
 	iot(ir uint, pc uint, ac uint) (uint, uint, error)
+	// Return a slice of device numbers for the device
+	deviceNumbers() []int
 	// Close the device when finished with
 	// TODO: Check if close best name
 	close()

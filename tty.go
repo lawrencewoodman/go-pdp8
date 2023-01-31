@@ -57,6 +57,10 @@ func (t *tty) poll() {
 	}
 }
 
+func (t *tty) deviceNumbers() []int {
+	return []int{0o3, 0o4}
+}
+
 func (t *tty) iot(ir uint, pc uint, ac uint) (uint, uint, error) {
 	var key string
 	var err error
