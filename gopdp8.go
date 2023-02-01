@@ -149,7 +149,7 @@ func (p *pdp8) load(filename string) error {
 		fmt.Printf("OK: %04o\r\n", checksum)
 	} else {
 		fmt.Printf("FAIL: %04o, SHOULD BE: %04o\r\n", checksum, mask(c))
-		os.Exit(1)
+		//		os.Exit(1)
 		// TODO: What to do if fails?
 	}
 	return nil
@@ -175,6 +175,9 @@ func usage(errMsg string) {
 }
 
 func main() {
+	var err error
+	var hlt bool
+
 	// TODO: Change this order and usage
 	if len(os.Args) < 2 {
 		usage("no filename supplied")
@@ -217,10 +220,32 @@ func main() {
 	}
 	defer cleanup(p)
 
-	if err := p.run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\r\n", err)
-		os.Exit(1)
+	for {
+		hlt, err = p.run(50000)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\r\n", err)
+			os.Exit(1)
+		}
+
+		if hlt {
+			// HLT before interrupt otherwise PC will move
+			fmt.Printf(" HLT  PC: %04o, LAC: %05o\r\n", mask(p.pc-1), p.lac)
+			break
+		}
+
+		// Poll for interrupts if interrupts enabled
+		if p.ien {
+			for _, d := range p.devices {
+				if d.interrupt() {
+					p.mem[0] = p.pc
+					p.pc = 1
+					p.ien = false
+					break
+				}
+			}
+		}
 	}
+	fmt.Printf(" PC: %04o, LAC: %05o\r\n", mask(p.pc-1), p.lac)
 }
 
 // TODO: rename this
@@ -260,35 +285,28 @@ func (p *pdp8) fetch() (opCode uint, opAddr uint) {
 	return opCode, opAddr
 }
 
-func (p *pdp8) run() error {
+// Returns (hltExecuted, error)
+// TODO: Improve cycle accuracy and return number left/over?
+func (p *pdp8) run(cycles int) (bool, error) {
 	var err error
-	intPollCounter := 65536
+	var hlt bool
 
-	for {
-		// Poll for interrupts if interrupts enabled
-		if p.ien && intPollCounter == 0 {
-			intPollCounter = 65536
-			for _, d := range p.devices {
-				if d.interrupt() {
-					p.mem[0] = p.pc
-					p.pc = 1
-					p.ien = false
-					break
-				}
-			}
-		}
-		intPollCounter -= 1
-
+	for cycles > 0 {
 		opCode, opAddr := p.fetch()
-		if err = p.execute(opCode, opAddr); err != nil {
-			return err
+		hlt, err = p.execute(opCode, opAddr)
+		if err != nil || hlt {
+			break
 		}
+		cycles -= 1
 	}
-	return nil
+	return hlt, err
 }
 
-func (p *pdp8) execute(opCode uint, opAddr uint) error {
+// Returns (hltExecuted, error)
+func (p *pdp8) execute(opCode uint, opAddr uint) (bool, error) {
 	var err error
+	var hlt bool
+
 	switch opCode {
 	case 0: // AND
 		p.lac &= p.mem[opAddr] | 0o10000
@@ -310,9 +328,9 @@ func (p *pdp8) execute(opCode uint, opAddr uint) error {
 	case 6: // IOT
 		err = p.iot()
 	case 7: // OPR
-		p.opr()
+		hlt = p.opr()
 	}
-	return err
+	return hlt, err
 }
 
 // IOT instruction
@@ -343,7 +361,8 @@ func (p *pdp8) iot() error {
 }
 
 // OPR instruction (microcoded instructions)
-func (p *pdp8) opr() {
+// Returns whether HLT (Halt) has been executed
+func (p *pdp8) opr() bool {
 	// TODO: Check order as well as AND/OR combinations
 	if (p.ir & 0o400) == 0 { // Group 1
 		if (p.ir & 0o200) != 0 { // CLA
@@ -400,8 +419,7 @@ func (p *pdp8) opr() {
 			p.lac |= p.sr
 		}
 		if (p.ir & 0o2) != 0 { // HLT
-			fmt.Printf("\r\nHALT PC: %04o  LAC:  %05o", p.pc, p.lac)
-			// TODO: temporary cludge, need to return something
+			return true
 		}
 	} else { // Group 3
 		// We store MQ so that MQA and MQL can exchange MQ and AC
@@ -417,4 +435,5 @@ func (p *pdp8) opr() {
 			p.lac |= t
 		}
 	}
+	return false
 }
