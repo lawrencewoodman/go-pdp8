@@ -175,9 +175,6 @@ func usage(errMsg string) {
 }
 
 func main() {
-	var err error
-	var hlt bool
-
 	// TODO: Change this order and usage
 	if len(os.Args) < 2 {
 		usage("no filename supplied")
@@ -219,12 +216,22 @@ func main() {
 		p.sr = uint(sr)
 	}
 	defer cleanup(p)
+	if err := p.runWithInterrupt(50000); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\r\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf(" PC: %04o, LAC: %05o\r\n", mask(p.pc-1), p.lac)
+}
+
+func (p *pdp8) runWithInterrupt(cyclesPerInterrupt int) error {
+	var err error
+	var hlt bool
 
 	for {
-		hlt, err = p.run(50000)
+		hlt, err = p.run(cyclesPerInterrupt)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %s\r\n", err)
-			os.Exit(1)
+			return err
 		}
 
 		if hlt {
@@ -245,7 +252,7 @@ func main() {
 			}
 		}
 	}
-	fmt.Printf(" PC: %04o, LAC: %05o\r\n", mask(p.pc-1), p.lac)
+	return err
 }
 
 // TODO: rename this
