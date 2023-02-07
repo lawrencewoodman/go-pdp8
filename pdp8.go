@@ -179,7 +179,8 @@ func (p *pdp8) runWithInterrupt(cyclesPerInterrupt int) error {
 
 		if hlt {
 			// HLT before interrupt otherwise PC will move
-			fmt.Printf(" HLT  PC: %04o, LAC: %05o\r\n", mask(p.pc-1), p.lac)
+			//fmt.Printf("PC: %04o  IR:  %04o  LAC: %05o\r\n", p.pc, p.ir, p.lac)
+			// TODO: How to handle this?
 			break
 		}
 
