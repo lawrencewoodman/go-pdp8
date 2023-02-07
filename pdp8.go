@@ -316,16 +316,16 @@ func (p *pdp8) opr() bool {
 	// TODO: Check order as well as AND/OR combinations
 	if (p.ir & 0o400) == 0 { // Group 1
 		if (p.ir & 0o200) != 0 { // CLA
-			p.lac = p.lac & 0o10000
+			p.lac &= 0o10000
 		}
 		if (p.ir & 0o100) != 0 { // CLL
-			p.lac = p.lac & 0o7777
+			p.lac &= 0o7777
 		}
 		if (p.ir & 0o40) != 0 { // CMA
-			p.lac = p.lac ^ 0o7777
+			p.lac ^= 0o7777
 		}
 		if (p.ir & 0o20) != 0 { // CML
-			p.lac = p.lac ^ 0o10000
+			p.lac ^= 0o10000
 		}
 		if (p.ir & 0o1) != 0 { // IAC
 			p.lac = lmask(p.lac + 1)
