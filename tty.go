@@ -84,6 +84,8 @@ func (t *tty) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 			if err != nil {
 				return pc, lac, err
 			}
+			// TODO: What should we do with multi-byte keypresses
+			// TODO: Should we support 8-bit or just 7-bit values?
 			if key[0] == 0x1C { // Exit on CTRL-\
 				fmt.Println("Quit")
 				os.Exit(0)
