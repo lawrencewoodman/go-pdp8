@@ -62,7 +62,7 @@ func main() {
 		p.sr = uint(sr)
 	}
 	defer cleanup(p)
-	if err := p.runWithInterrupt(50000); err != nil {
+	if err := p.runWithInterrupt(50000, 5000000); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\r\n", err)
 		os.Exit(1)
 	}

@@ -167,17 +167,21 @@ func (p *pdp8) regDevice(d device) error {
 	return nil
 }
 
-func (p *pdp8) runWithInterrupt(cyclesPerInterrupt int) error {
+func (p *pdp8) runWithInterrupt(cyclesPerInterrupt int, maxCycles int) error {
 	var err error
 	var hlt bool
+	var _cyclesLeft int // Returned from run()
+
+	cyclesLeft := maxCycles
 
 	for {
-		hlt, err = p.run(cyclesPerInterrupt)
+		hlt, _cyclesLeft, err = p.run(cyclesPerInterrupt)
 		if err != nil {
 			return err
 		}
+		cyclesLeft -= (cyclesPerInterrupt - _cyclesLeft)
 
-		if hlt {
+		if hlt || cyclesLeft < 0 {
 			// HLT before interrupt otherwise PC will move
 			//fmt.Printf("PC: %04o  IR:  %04o  LAC: %05o\r\n", p.pc, p.ir, p.lac)
 			// TODO: How to handle this?
@@ -238,7 +242,7 @@ func (p *pdp8) fetch() (opCode uint, opAddr uint) {
 
 // Returns (hltExecuted, error)
 // TODO: Improve cycle accuracy and return number left/over?
-func (p *pdp8) run(cycles int) (bool, error) {
+func (p *pdp8) run(cycles int) (bool, int, error) {
 	var err error
 	var hlt bool
 
@@ -250,7 +254,7 @@ func (p *pdp8) run(cycles int) (bool, error) {
 		}
 		cycles -= 1
 	}
-	return hlt, err
+	return hlt, cycles, err
 }
 
 // Returns (hltExecuted, error)
