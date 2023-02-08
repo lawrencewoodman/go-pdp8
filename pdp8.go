@@ -141,6 +141,8 @@ func (p *pdp8) load(filename string) error {
 		}
 	}
 
+	// TODO: Should we be showing the checksum and other values, unless
+	// TODO: debug mode is on?
 	fmt.Printf("-%04o\r\n", mask(addr-1))
 	fmt.Printf(" CHECKSUM ")
 	if checksum == mask(c) {

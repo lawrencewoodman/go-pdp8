@@ -1,2 +1,8 @@
 # Vim Swap Files
 *.swp
+
+# MAINDEC paper tapes
+fixtures/maindec*.bin
+
+# DEC paper tapes
+fixtures/dec*.bin
