@@ -254,7 +254,7 @@ func (p *pdp8) run(cycles int) (bool, int, error) {
 		if err != nil || hlt {
 			break
 		}
-		cycles -= 1
+		cycles--
 	}
 	return hlt, cycles, err
 }

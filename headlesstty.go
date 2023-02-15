@@ -32,9 +32,14 @@ func newHeadlessTty() (*headlessTty, error) {
 func (t *headlessTty) close() {
 }
 
+func (t *headlessTty) isEOF() bool {
+	return t.readerTapePos >= len(t.readerTape)
+}
+
 // Read a file and attach it to the paper tape reader
 func (t *headlessTty) attachReaderTape(filename string) error {
 	var err error
+	t.readerTapePos = 0
 	t.readerTape, err = os.ReadFile(filename)
 	return err
 }
@@ -68,7 +73,7 @@ func (t *headlessTty) deviceNumbers() []int {
 func (t *headlessTty) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 	var err error
 
-	// NOTE: Operations are executed from right bit to left
+	// Operations are executed from right bit to left
 	device := (ir >> 3) & 0o77
 	switch device {
 	case 0o3: // Keyboard
@@ -78,16 +83,17 @@ func (t *headlessTty) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 				pc = mask(pc + 1)
 			}
 		}
-		if (ir & 0o2) != 0 { // KCC - Clear Flag
+		if (ir & 0o2) != 0 { // KCC - Clear AC and Flag
 			t.ttiReadyFlag = false
 			lac = (lac & 0o10000) // Zero AC but keep L
 		}
 		if (ir & 0o4) != 0 { // KRS - Read static
-			key := t.readerTape[t.readerTapePos]
-			t.readerTapePos += 1
-			// OR the key with the lower 8 bits of AC without changing L
-			lac = (lac & 0o10377) | uint(key)
-
+			if t.readerTapePos < len(t.readerTape) {
+				key := t.readerTape[t.readerTapePos]
+				t.readerTapePos++
+				// OR the key with the lower 8 bits of AC without changing L
+				lac = lac | (uint(key) & 0o377)
+			}
 		}
 	case 0o4: // Teleprinter
 		if (ir & 0o1) != 0 { // TSF  - Skip if ready

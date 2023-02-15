@@ -2,12 +2,14 @@
 
 In order to test the emulator the fixtures/ directory needs a number of paper tape images.  Below we can see where to obtain them.
 
+
 ## DEC Utility Paper Tape Images
 
 The DEC utility paper tape image files needed are:
 
-* dec-08-lbaa-pm.bin
-  - http://dustyoldcomputers.com/pdp-common/reference/papertapes/dec-08.html
+* dec-08-lbaa.rim
+  - Original filename: decbin.rim
+  - https://ak6dn.github.io/PDP-8/MAINDEC/Binary_Loaders/
 
 ## MAINDEC Diagnostic Paper Tape Images
 

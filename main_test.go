@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 
 func checkDecFiles() bool {
 	expectedDecFiles := []string{
-		"dec-08-lbaa-pm.bin",
+		"dec-08-lbaa.rim",
 	}
 	missing := false
 	for _, mf := range expectedDecFiles {

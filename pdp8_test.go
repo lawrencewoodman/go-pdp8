@@ -16,7 +16,7 @@ func TestRunWithInterrupt_maindec_08_d01a_pb(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	loadTape(t, p, _tty, filepath.Join("fixtures", "maindec-08-d01a-pb.bin"))
+	loadBINTape(t, p, _tty, filepath.Join("fixtures", "maindec-08-d01a-pb.bin"))
 	p.pc = 0o1200
 	p.sr = 0o7777
 
@@ -50,7 +50,7 @@ func TestRunWithInterrupt_maindec_08_d02b_pb(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	loadTape(t, p, _tty, filepath.Join("fixtures", "maindec-08-d02b-pb.bin"))
+	loadBINTape(t, p, _tty, filepath.Join("fixtures", "maindec-08-d02b-pb.bin"))
 	p.pc = 0o200
 	p.sr = 0o4400
 
