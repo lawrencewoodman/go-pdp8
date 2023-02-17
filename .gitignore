@@ -6,3 +6,6 @@ fixtures/maindec*.bin
 
 # DEC paper tapes
 fixtures/dec*.rim
+
+# TODO: Perhaps put this in bin/
+downloadfixtures

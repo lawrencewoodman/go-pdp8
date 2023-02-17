@@ -2,20 +2,18 @@
 
 In order to test the emulator the fixtures/ directory needs a number of paper tape images.  Below we can see where to obtain them.
 
+To download these images we can use cmd/downloadfixtures
 
-## DEC Utility Paper Tape Images
+To build the command from the root of the repo use:
 
-The DEC utility paper tape image files needed are:
+```
+$ go build ./cmd/downloadfixtures
+```
 
-* dec-08-lbaa.rim
-  - Original filename: decbin.rim
-  - https://ak6dn.github.io/PDP-8/MAINDEC/Binary_Loaders/
+We can then run it using the following to download the files needed to fixtures/ if we add the `-confirm` switch we are confirming that we are aware that the files may be copyrighted:
 
-## MAINDEC Diagnostic Paper Tape Images
+```
+$ ./downloadfixtures -confirm fixtures
+```
 
-The MAINDEC diagnostic paper tape image files needed are:
-
-* maindec-08-d01a-pb.bin
-  - http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec-08.html
-* maindec-08-d02b-pb.bin
-  - http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec-08.html
+If you would rather download the files manually you can see them and their sources listed in cmd/downloadfixtures/main.go
