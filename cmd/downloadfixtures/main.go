@@ -16,6 +16,16 @@ import (
 	"path/filepath"
 )
 
+/*
+ * The following is a list of files needed for testing along
+ * with their possible sources and file sizes
+ */
+var files = []fileDesc{
+	fileDesc{filename: "dec-08-lbaa.rim", sources: []source{source{url: "https://ak6dn.github.io/PDP-8/MAINDEC/Binary_Loaders/decbin.rim", size: 408}, source{url: "http://bitsavers.informatik.uni-stuttgart.de/bits/DEC/pdp8/papertapeImages/set2/tray2/dec-08-lbaa-pm_5-10-67.bin", size: 673}}},
+	fileDesc{filename: "maindec-08-d01a-pb.bin", sources: []source{source{url: "http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec/maindec-08-d01a-pb.bin", size: 4328}}},
+	fileDesc{filename: "maindec-08-d02b-pb.bin", sources: []source{source{url: "http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec/maindec-08-d02b-pb.bin", size: 1876}}},
+}
+
 func downloadFile(destinationDir string, desc fileDesc) error {
 	var f *os.File
 	var err error
@@ -92,11 +102,6 @@ type source struct {
 }
 
 func main() {
-	files := []fileDesc{
-		fileDesc{filename: "dec-08-lbaa.rim", sources: []source{source{url: "https://ak6dn.github.io/PDP-8/MAINDEC/Binary_Loaders/decbin.rim", size: 408}, source{url: "http://bitsavers.informatik.uni-stuttgart.de/bits/DEC/pdp8/papertapeImages/set2/tray2/dec-08-lbaa-pm_5-10-67.bin", size: 673}}},
-		fileDesc{filename: "maindec-08-d01a-pb.bin", sources: []source{source{url: "http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec/maindec-08-d01a-pb.bin", size: 4328}}},
-		fileDesc{filename: "maindec-08-d02b-pb.bin", sources: []source{source{url: "http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec/maindec-08-d02b-pb.bin", size: 1876}}},
-	}
 
 	if len(os.Args) < 2 || os.Args[1] != "-confirm" {
 		usage("these files maybe copyrighted, supply -confirm switch to confirm that you are aware")
