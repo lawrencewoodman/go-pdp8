@@ -2,7 +2,7 @@
  * Accept key presses from the console in raw mode
  *
  * This means we can read single key presses without waiting for a
- * newline.  RawTerminalReader implements io.ReadCloser
+ * newline.  RawTermReader implements io.ReadCloser
  *
  * Copyright (C) 2023 Lawrence Woodman <lwoodman@vlifesystems.com>
  *
@@ -21,7 +21,7 @@ import (
 	"os"
 )
 
-type RawTerminalReader struct {
+type RawTermReader struct {
 	state      *term.State // stdin original terminal state
 	stdinch    chan byte   // Channel used to receive key presses
 	keyWaiting bool        // If a key is waiting
@@ -29,8 +29,8 @@ type RawTerminalReader struct {
 	err        error       // An error if raised
 }
 
-func NewRawTerminalReader() (*RawTerminalReader, error) {
-	r := &RawTerminalReader{}
+func NewRawTermReader() (*RawTermReader, error) {
+	r := &RawTermReader{}
 	var err error
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return nil, errors.New("stdin/stdout should be terminal")
@@ -63,7 +63,7 @@ func NewRawTerminalReader() (*RawTerminalReader, error) {
 	return r, nil
 }
 
-func (r *RawTerminalReader) Close() error {
+func (r *RawTermReader) Close() error {
 	close(r.stdinch)
 	if err := term.Restore(int(os.Stdin.Fd()), r.state); err != nil {
 		return fmt.Errorf("failed to restore terminal: %s", err)
@@ -71,7 +71,7 @@ func (r *RawTerminalReader) Close() error {
 	return nil
 }
 
-func (r *RawTerminalReader) Read(p []byte) (n int, err error) {
+func (r *RawTermReader) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -89,7 +89,7 @@ func (r *RawTerminalReader) Read(p []byte) (n int, err error) {
 }
 
 // Returns if a key is waiting to be read
-func (r *RawTerminalReader) isKeyWaiting() bool {
+func (r *RawTermReader) isKeyWaiting() bool {
 	if r.keyWaiting {
 		return true
 	}
@@ -106,7 +106,7 @@ func (r *RawTerminalReader) isKeyWaiting() bool {
 }
 
 // Returns a string representing the key read
-func (r *RawTerminalReader) getKey() (byte, error) {
+func (r *RawTermReader) getKey() (byte, error) {
 	var key byte
 	if r.err != nil {
 		return 0, r.err
