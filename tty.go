@@ -3,6 +3,8 @@
  *
  * This will emulate a TTY device connected to the console.
  *
+ * TODO: Be more specific about what TTY device
+ *
  * Copyright (C) 2023 Lawrence Woodman <lwoodman@vlifesystems.com>
  *
  * Licensed under an MIT licence.  Please see LICENCE.md for details.
@@ -16,16 +18,16 @@ import (
 	"os"
 )
 
-type tty struct {
+type TTY struct {
 	ttiReadyFlag     bool // TTI keyboard
 	ttoReadyFlag     bool // TTO printer
 	interruptWaiting bool // If an interrupt is waiting to be processed
 	rawC             *rawConsole
 }
 
-func newTty() (*tty, error) {
+func NewTTY() (*TTY, error) {
 	var err error
-	t := &tty{}
+	t := &TTY{}
 	t.rawC, err = newRawConsole()
 	if err != nil {
 		return nil, err
@@ -33,19 +35,21 @@ func newTty() (*tty, error) {
 	return t, nil
 }
 
-func (t *tty) close() {
+func (t *TTY) Close() error {
+	// TODO: get an error from this?
 	t.rawC.close()
+	return nil
 }
 
 // Return if there is an interrupt raised
-func (t *tty) interrupt() bool {
+func (t *TTY) interrupt() bool {
 	t.poll()
 	defer func() { t.interruptWaiting = false }()
 	return t.interruptWaiting
 }
 
 // Checks for activity on device
-func (t *tty) poll() {
+func (t *TTY) poll() {
 	if !t.ttiReadyFlag {
 		if t.rawC.isKeyWaiting() {
 			t.interruptWaiting = true
@@ -58,11 +62,11 @@ func (t *tty) poll() {
 	}
 }
 
-func (t *tty) deviceNumbers() []int {
+func (t *TTY) deviceNumbers() []int {
 	return []int{0o3, 0o4}
 }
 
-func (t *tty) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
+func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 	var key string
 	var err error
 

@@ -30,7 +30,8 @@ func newHeadlessTty() (*headlessTty, error) {
 	return t, nil
 }
 
-func (t *headlessTty) close() {
+func (t *headlessTty) Close() error {
+	return nil
 }
 
 func (t *headlessTty) isEOF() bool {

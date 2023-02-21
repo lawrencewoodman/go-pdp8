@@ -11,7 +11,7 @@ import (
 )
 
 // Load paper tape in RIM format
-func loadRIMTape(t *testing.T, p *Pdp8, _tty *headlessTty, filename string) {
+func loadRIMTape(t *testing.T, p *PDP8, tty *headlessTty, filename string) {
 	rimLowSpeedLoader := map[uint]uint{
 		0o7756: 0o6032,
 		0o7757: 0o6031,
@@ -38,7 +38,7 @@ func loadRIMTape(t *testing.T, p *Pdp8, _tty *headlessTty, filename string) {
 	}
 
 	// Attach Paper tape in RIM format
-	if err := _tty.attachReaderTape(filename); err != nil {
+	if err := tty.attachReaderTape(filename); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,27 +48,33 @@ func loadRIMTape(t *testing.T, p *Pdp8, _tty *headlessTty, filename string) {
 	cyclesCount := 10000
 	for {
 		// Run RIM loader to load the paper tape
-		if err := p.RunWithInterrupt(50000, 50000); err != nil {
+		hlt, err := p.RunWithInterrupt(50000, 50000)
+		if err != nil {
 			t.Fatal(err)
 		}
+
+		if hlt {
+			t.Errorf("HLT at PC: %04o", p.pc-1)
+		}
+
 		cyclesCount--
-		if _tty.isEOF() || cyclesCount == 0 {
+		if tty.isEOF() || cyclesCount == 0 {
 			break
 		}
 	}
 
-	if !_tty.isEOF() || !(p.pc == 0o7756 || p.pc == 0o7760) {
+	if !tty.isEOF() || !(p.pc == 0o7756 || p.pc == 0o7760) {
 		t.Fatalf("RIM loader didn't finish, PC: %04o", p.pc)
 	}
 }
 
 // Load paper tape in binary format
-func loadBINTape(t *testing.T, p *Pdp8, _tty *headlessTty, filename string) {
+func loadBINTape(t *testing.T, p *PDP8, tty *headlessTty, filename string) {
 	// Load the BIN loader
-	loadRIMTape(t, p, _tty, filepath.Join("fixtures", "dec-08-lbaa.rim"))
+	loadRIMTape(t, p, tty, filepath.Join("fixtures", "dec-08-lbaa.rim"))
 
 	// Run BIN loader to load supplied paper tape
-	if err := _tty.attachReaderTape(filename); err != nil {
+	if err := tty.attachReaderTape(filename); err != nil {
 		t.Fatal(err)
 	}
 
@@ -81,8 +87,13 @@ func loadBINTape(t *testing.T, p *Pdp8, _tty *headlessTty, filename string) {
 
 	// Run binary loader to load maindec tape
 	// TODO: Is this long enough?
-	if err := p.RunWithInterrupt(50000, 5000000); err != nil {
+	hlt, err := p.RunWithInterrupt(50000, 5000000)
+	if err != nil {
 		t.Fatal(err)
+	}
+
+	if !hlt {
+		t.Errorf("Failed to execute HLT at PC: %04o", p.pc-1)
 	}
 
 	if mask(p.lac) != 0 || p.ir != 0o7402 {

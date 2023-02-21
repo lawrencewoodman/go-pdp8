@@ -1,5 +1,5 @@
 /*
- * The PDP-8 emulator internals
+ * An embeddable PDP-8 emulator library
  *
  * Copyright (C) 2023 Lawrence Woodman <lwoodman@vlifesystems.com>
  *
@@ -16,7 +16,7 @@ import (
 
 const memSize = 4096
 
-type Pdp8 struct {
+type PDP8 struct {
 	// NOTE: Using uint rather than int because of right shifting
 	// TODO: consider creating a word type to better encapsulate this?
 	mem           [memSize]uint // Memory
@@ -31,8 +31,8 @@ type Pdp8 struct {
 }
 
 // TODO: Put this in a separate package as New
-func New() *Pdp8 {
-	p := &Pdp8{}
+func New() *PDP8 {
+	p := &PDP8{}
 	p.pc = 0o200
 	p.sr = 0
 	p.lac = 0
@@ -59,7 +59,7 @@ func printPunchHoles(n uint) {
 }
 
 // TODO: Remove this or change it to a RIM loader?
-func (p *Pdp8) Load(filename string) error {
+func (p *PDP8) Load(filename string) error {
 	var n int
 	var c uint
 	var addr uint
@@ -156,7 +156,7 @@ func (p *Pdp8) Load(filename string) error {
 	return nil
 }
 
-func (p *Pdp8) AddDevice(d device) error {
+func (p *PDP8) AddDevice(d device) error {
 	newDeviceNumbers := d.deviceNumbers()
 	for _, n1 := range newDeviceNumbers {
 		for _, n2 := range p.deviceNumbers {
@@ -170,7 +170,8 @@ func (p *Pdp8) AddDevice(d device) error {
 	return nil
 }
 
-func (p *Pdp8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) error {
+// Returns (hlt, err)  hlt = whether executed HLT instruction
+func (p *PDP8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) (bool, error) {
 	var err error
 	var hlt bool
 	var _cyclesLeft int // Returned from run()
@@ -180,7 +181,7 @@ func (p *Pdp8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) error {
 	for {
 		hlt, _cyclesLeft, err = p.run(cyclesPerInterrupt)
 		if err != nil {
-			return err
+			return hlt, err
 		}
 		cyclesLeft -= (cyclesPerInterrupt - _cyclesLeft)
 
@@ -203,16 +204,26 @@ func (p *Pdp8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) error {
 			}
 		}
 	}
-	return err
+	return hlt, err
+}
+
+// Set Program Counter
+func (p *PDP8) SetPC(pc uint) {
+	p.pc = mask(pc)
+}
+
+// Set Switch Register
+func (p *PDP8) SetSR(sr uint) {
+	p.sr = mask(sr)
 }
 
 // TODO: rename this
-func Cleanup(p *Pdp8) {
+func (p *PDP8) Cleanup() {
 	fmt.Printf(" PC %04o\r\n", mask(p.pc-1))
 }
 
 // fetch returns opCode and opAddr if relevant else 0
-func (p *Pdp8) fetch() (opCode uint, opAddr uint) {
+func (p *PDP8) fetch() (opCode uint, opAddr uint) {
 	p.ir = p.mem[p.pc]
 	opCode = (p.ir >> 9) & 0o7
 	opAddr = 0
@@ -246,7 +257,7 @@ func (p *Pdp8) fetch() (opCode uint, opAddr uint) {
 
 // Returns (hltExecuted, error)
 // TODO: Improve cycle accuracy and return number left/over?
-func (p *Pdp8) run(cycles int) (bool, int, error) {
+func (p *PDP8) run(cycles int) (bool, int, error) {
 	var err error
 	var hlt bool
 
@@ -262,7 +273,7 @@ func (p *Pdp8) run(cycles int) (bool, int, error) {
 }
 
 // Returns (hltExecuted, error)
-func (p *Pdp8) execute(opCode uint, opAddr uint) (bool, error) {
+func (p *PDP8) execute(opCode uint, opAddr uint) (bool, error) {
 	var err error
 	var hlt bool
 
@@ -293,7 +304,7 @@ func (p *Pdp8) execute(opCode uint, opAddr uint) (bool, error) {
 }
 
 // IOT instruction
-func (p *Pdp8) iot() error {
+func (p *PDP8) iot() error {
 	var err error
 	device := (p.ir >> 3) & 0o77
 	iotOp := p.ir & 0o7
@@ -321,7 +332,7 @@ func (p *Pdp8) iot() error {
 
 // OPR instruction (microcoded instructions)
 // Returns whether HLT (Halt) has been executed
-func (p *Pdp8) opr() bool {
+func (p *PDP8) opr() bool {
 	// TODO: Check order as well as AND/OR combinations
 	if (p.ir & 0o400) == 0 { // Group 1
 		if (p.ir & 0o200) != 0 { // CLA

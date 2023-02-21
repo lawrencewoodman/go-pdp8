@@ -16,6 +16,7 @@ package pdp8
 // TODO: don't have multiple devices with the same number
 type device interface {
 	// Is an interrupt raised?
+	// TODO: Rename to isInterrupt() ?
 	interrupt() bool
 	// Returns PC, LAC, error
 	iot(ir uint, pc uint, lac uint) (uint, uint, error)
@@ -23,5 +24,5 @@ type device interface {
 	deviceNumbers() []int
 	// Close the device when finished with
 	// TODO: Check if close best name
-	close()
+	Close() error
 }
