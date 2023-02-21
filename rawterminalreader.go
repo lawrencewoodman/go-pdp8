@@ -1,7 +1,8 @@
 /*
  * Accept key presses from the console in raw mode
  *
- * This means we can read single key presses
+ * This means we can read single key presses without waiting for a
+ * newline.  RawTerminalReader implements io.ReadCloser
  *
  * Copyright (C) 2023 Lawrence Woodman <lwoodman@vlifesystems.com>
  *
@@ -20,16 +21,16 @@ import (
 	"os"
 )
 
-type rawConsole struct {
+type RawTerminalReader struct {
 	state      *term.State // stdin original terminal state
-	stdinch    chan string // Channel used to receive key presses
+	stdinch    chan byte   // Channel used to receive key presses
 	keyWaiting bool        // If a key is waiting
-	key        string      // The last key read
+	key        byte        // The last key read
 	err        error       // An error if raised
 }
 
-func newRawConsole() (*rawConsole, error) {
-	r := &rawConsole{}
+func NewRawTerminalReader() (*RawTerminalReader, error) {
+	r := &RawTerminalReader{}
 	var err error
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return nil, errors.New("stdin/stdout should be terminal")
@@ -42,12 +43,12 @@ func newRawConsole() (*rawConsole, error) {
 		return nil, fmt.Errorf("setting stdin to raw: %s", err)
 	}
 
-	r.stdinch = make(chan string)
+	r.stdinch = make(chan byte)
 	in := bufio.NewReader(os.Stdin)
 
 	// Create a go routine to check for keys from STDIN
 	// and send them to the r.stdinch channel
-	go func(ch chan<- string, in *bufio.Reader) {
+	go func(ch chan<- byte, in *bufio.Reader) {
 		var b []byte = make([]byte, 1)
 		for {
 			_, err := in.Read(b)
@@ -55,22 +56,40 @@ func newRawConsole() (*rawConsole, error) {
 				r.err = fmt.Errorf("stdin: %s", err)
 				break
 			}
-			ch <- string(b)
+			ch <- b[0]
 		}
 	}(r.stdinch, in)
 
 	return r, nil
 }
 
-func (r *rawConsole) close() {
+func (r *RawTerminalReader) Close() error {
 	close(r.stdinch)
 	if err := term.Restore(int(os.Stdin.Fd()), r.state); err != nil {
-		// TODO: return err instead?
-		panic(fmt.Sprintf("failed to restore terminal: %s", err))
+		return fmt.Errorf("failed to restore terminal: %s", err)
 	}
+	return nil
 }
 
-func (r *rawConsole) isKeyWaiting() bool {
+func (r *RawTerminalReader) Read(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	for i := 0; i < len(p); i++ {
+		key, err := r.getKey()
+		if err != nil {
+			return 0, err
+		}
+		if key == 0 {
+			return i, nil
+		}
+		p[i] = key
+	}
+	return len(p), nil
+}
+
+// Returns if a key is waiting to be read
+func (r *RawTerminalReader) isKeyWaiting() bool {
 	if r.keyWaiting {
 		return true
 	}
@@ -87,14 +106,14 @@ func (r *rawConsole) isKeyWaiting() bool {
 }
 
 // Returns a string representing the key read
-func (r *rawConsole) getKey() (string, error) {
-	var key string
+func (r *RawTerminalReader) getKey() (byte, error) {
+	var key byte
 	if r.err != nil {
-		return "", r.err
+		return 0, r.err
 	}
 	if r.isKeyWaiting() {
 		key = r.key
-		r.key = ""
+		r.key = 0
 		r.keyWaiting = false
 	}
 	return key, nil

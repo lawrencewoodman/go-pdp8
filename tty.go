@@ -15,51 +15,56 @@ package pdp8
 
 import (
 	"fmt"
+	"io"
 	"os"
 )
 
 type TTY struct {
-	ttiReadyFlag     bool // TTI keyboard
-	ttoReadyFlag     bool // TTO printer
-	interruptWaiting bool // If an interrupt is waiting to be processed
-	rawC             *rawConsole
+	ttiReadyFlag        bool // TTI keyboard
+	ttiInputBuffer      byte // A value in the input buffer
+	ttiInputBufferEmpty bool // If the input buffer is empty
+	ttoReadyFlag        bool // TTO printer
+	interruptWaiting    bool // If an interrupt is waiting to be processed
+	reader              io.ReadCloser
 }
 
-func NewTTY() (*TTY, error) {
-	var err error
-	t := &TTY{}
-	t.rawC, err = newRawConsole()
-	if err != nil {
-		return nil, err
-	}
-	return t, nil
+func NewTTY(r io.ReadCloser) *TTY {
+	t := &TTY{reader: r, ttiInputBufferEmpty: true}
+	return t
 }
 
 func (t *TTY) Close() error {
-	// TODO: get an error from this?
-	t.rawC.close()
-	return nil
+	return t.reader.Close()
 }
 
 // Return if there is an interrupt raised
 func (t *TTY) interrupt() bool {
+	// TODO: do something with poll error
 	t.poll()
 	defer func() { t.interruptWaiting = false }()
 	return t.interruptWaiting
 }
 
 // Checks for activity on device
-func (t *TTY) poll() {
-	if !t.ttiReadyFlag {
-		if t.rawC.isKeyWaiting() {
+func (t *TTY) poll() error {
+	key := make([]byte, 1)
+	if t.ttiInputBufferEmpty {
+		n, err := t.reader.Read(key)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if n == 1 {
+			t.ttiInputBuffer = key[0]
+			t.ttiInputBufferEmpty = false
 			t.interruptWaiting = true
 			t.ttiReadyFlag = true
-			return
+			return nil
 		}
 	}
 	if t.ttoReadyFlag {
 		t.interruptWaiting = true
 	}
+	return nil
 }
 
 func (t *TTY) deviceNumbers() []int {
@@ -67,7 +72,6 @@ func (t *TTY) deviceNumbers() []int {
 }
 
 func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
-	var key string
 	var err error
 
 	// Operations are executed from right bit to left
@@ -81,23 +85,24 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 			}
 		}
 		if (ir & 0o2) != 0 { // KCC - Clear AC and Flag
+			t.poll()
 			t.ttiReadyFlag = false
 			lac = (lac & 0o10000) // Zero AC but keep L
 		}
 		if (ir & 0o4) != 0 { // KRS - Read static
-			key, err = t.rawC.getKey()
-			if err != nil {
-				return pc, lac, err
+			if !t.ttiInputBufferEmpty {
+				if t.ttiInputBuffer == 0x1C { // Exit on CTRL-\
+					fmt.Println("Quit")
+					os.Exit(0)
+					// TODO: use a flag to exit nicely
+				}
+
+				// TODO: Make this lower 7 bits
+				// OR the key with the lower 8 bits of AC without changing L
+				// NOTE: Bit 8 (MSB left) is set to 1 for keyboard input
+				lac = lac | (uint(t.ttiInputBuffer) & 0o377)
+				t.ttiInputBufferEmpty = true
 			}
-			// TODO: What should we do with multi-byte keypresses
-			// TODO: Should we support 8-bit or just 7-bit values?
-			if key[0] == 0x1C { // Exit on CTRL-\
-				fmt.Println("Quit")
-				os.Exit(0)
-				// TODO: use a flag to exit nicely
-			}
-			// OR the key with the lower 8 bits of AC without changing L
-			lac = lac | (uint(key[0]) & 0o377)
 		}
 	case 0o4: // Teleprinter
 		if (ir & 0o1) != 0 { // TSF  - Skip if ready
