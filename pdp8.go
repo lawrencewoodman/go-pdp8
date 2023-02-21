@@ -6,7 +6,7 @@
  * Licensed under an MIT licence.  Please see LICENCE.md for details.
  */
 
-package main
+package pdp8
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ import (
 
 const memSize = 4096
 
-type pdp8 struct {
+type Pdp8 struct {
 	// NOTE: Using uint rather than int because of right shifting
 	// TODO: consider creating a word type to better encapsulate this?
 	mem           [memSize]uint // Memory
@@ -31,8 +31,8 @@ type pdp8 struct {
 }
 
 // TODO: Put this in a separate package as New
-func newPdp8() *pdp8 {
-	p := &pdp8{}
+func New() *Pdp8 {
+	p := &Pdp8{}
 	p.pc = 0o200
 	p.sr = 0
 	p.lac = 0
@@ -58,7 +58,8 @@ func printPunchHoles(n uint) {
 	fmt.Printf("%05b %03b\r\n", (n&0o370)>>3, n&0o7)
 }
 
-func (p *pdp8) load(filename string) error {
+// TODO: Remove this or change it to a RIM loader?
+func (p *Pdp8) Load(filename string) error {
 	var n int
 	var c uint
 	var addr uint
@@ -155,7 +156,7 @@ func (p *pdp8) load(filename string) error {
 	return nil
 }
 
-func (p *pdp8) regDevice(d device) error {
+func (p *Pdp8) AddDevice(d device) error {
 	newDeviceNumbers := d.deviceNumbers()
 	for _, n1 := range newDeviceNumbers {
 		for _, n2 := range p.deviceNumbers {
@@ -169,7 +170,7 @@ func (p *pdp8) regDevice(d device) error {
 	return nil
 }
 
-func (p *pdp8) runWithInterrupt(cyclesPerInterrupt int, maxCycles int) error {
+func (p *Pdp8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) error {
 	var err error
 	var hlt bool
 	var _cyclesLeft int // Returned from run()
@@ -206,12 +207,12 @@ func (p *pdp8) runWithInterrupt(cyclesPerInterrupt int, maxCycles int) error {
 }
 
 // TODO: rename this
-func cleanup(p *pdp8) {
+func Cleanup(p *Pdp8) {
 	fmt.Printf(" PC %04o\r\n", mask(p.pc-1))
 }
 
 // fetch returns opCode and opAddr if relevant else 0
-func (p *pdp8) fetch() (opCode uint, opAddr uint) {
+func (p *Pdp8) fetch() (opCode uint, opAddr uint) {
 	p.ir = p.mem[p.pc]
 	opCode = (p.ir >> 9) & 0o7
 	opAddr = 0
@@ -234,6 +235,7 @@ func (p *pdp8) fetch() (opCode uint, opAddr uint) {
 
 	// TODO: This is wrong because -v could be passed earlier without
 	// TODO: pc or sr
+	// TODO: Remove this as no longer relevant for package
 	if len(os.Args) >= 5 {
 		fmt.Printf("PC: %04o  IR:  %04o  LAC: %05o\r\n", p.pc, p.ir, p.lac)
 	}
@@ -244,7 +246,7 @@ func (p *pdp8) fetch() (opCode uint, opAddr uint) {
 
 // Returns (hltExecuted, error)
 // TODO: Improve cycle accuracy and return number left/over?
-func (p *pdp8) run(cycles int) (bool, int, error) {
+func (p *Pdp8) run(cycles int) (bool, int, error) {
 	var err error
 	var hlt bool
 
@@ -260,7 +262,7 @@ func (p *pdp8) run(cycles int) (bool, int, error) {
 }
 
 // Returns (hltExecuted, error)
-func (p *pdp8) execute(opCode uint, opAddr uint) (bool, error) {
+func (p *Pdp8) execute(opCode uint, opAddr uint) (bool, error) {
 	var err error
 	var hlt bool
 
@@ -291,7 +293,7 @@ func (p *pdp8) execute(opCode uint, opAddr uint) (bool, error) {
 }
 
 // IOT instruction
-func (p *pdp8) iot() error {
+func (p *Pdp8) iot() error {
 	var err error
 	device := (p.ir >> 3) & 0o77
 	iotOp := p.ir & 0o7
@@ -319,7 +321,7 @@ func (p *pdp8) iot() error {
 
 // OPR instruction (microcoded instructions)
 // Returns whether HLT (Halt) has been executed
-func (p *pdp8) opr() bool {
+func (p *Pdp8) opr() bool {
 	// TODO: Check order as well as AND/OR combinations
 	if (p.ir & 0o400) == 0 { // Group 1
 		if (p.ir & 0o200) != 0 { // CLA

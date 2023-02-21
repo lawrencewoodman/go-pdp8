@@ -10,7 +10,8 @@
  */
 
 // TODO:  Implement receiving info from device and sending to it
-package main
+// TODO: Put in separate package?
+package pdp8
 
 import (
 	"os"

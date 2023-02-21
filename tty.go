@@ -8,7 +8,8 @@
  * Licensed under an MIT licence.  Please see LICENCE.md for details.
  */
 
-package main
+// TODO: Put in separate package?
+package pdp8
 
 import (
 	"fmt"

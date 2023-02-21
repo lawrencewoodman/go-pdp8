@@ -8,7 +8,9 @@
  * Licensed under an MIT licence.  Please see LICENCE.md for details.
  */
 
-package main
+// TODO: Put in separate package?
+// TODO: Use via an interface as this isn't relevant for many uses
+package pdp8
 
 import (
 	"bufio"

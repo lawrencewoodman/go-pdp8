@@ -1,4 +1,4 @@
-package main
+package pdp8
 
 import (
 	"path/filepath"
@@ -11,8 +11,8 @@ func TestRunWithInterrupt_maindec_08_d01a_pb(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer _tty.close() // TODO: call this from within pdp?
-	p := newPdp8()
-	if err := p.regDevice(_tty); err != nil {
+	p := New()
+	if err := p.AddDevice(_tty); err != nil {
 		t.Fatal(err)
 	}
 
@@ -21,14 +21,14 @@ func TestRunWithInterrupt_maindec_08_d01a_pb(t *testing.T) {
 	p.sr = 0o7777
 
 	// Run maindec tape
-	if err := p.runWithInterrupt(50000, 500000); err != nil {
+	if err := p.RunWithInterrupt(50000, 500000); err != nil {
 		t.Fatal(err)
 	}
 	if mask(p.lac) != 0 || p.pc-1 != 0o1202 {
 		t.Errorf("First HLT - got: LAC: %05o PC: %04o, want: LAC: 00000, PC: 1202", p.lac, p.pc-1)
 	}
 
-	if err := p.runWithInterrupt(50000, 50000000); err != nil {
+	if err := p.RunWithInterrupt(50000, 50000000); err != nil {
 		t.Fatal(err)
 	}
 
@@ -45,8 +45,8 @@ func TestRunWithInterrupt_maindec_08_d02b_pb(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer _tty.close() // TODO: call this from within pdp?
-	p := newPdp8()
-	if err := p.regDevice(_tty); err != nil {
+	p := New()
+	if err := p.AddDevice(_tty); err != nil {
 		t.Fatal(err)
 	}
 
@@ -55,7 +55,7 @@ func TestRunWithInterrupt_maindec_08_d02b_pb(t *testing.T) {
 	p.sr = 0o4400
 
 	// Run maindec tape
-	if err := p.runWithInterrupt(50000, 500000); err != nil {
+	if err := p.RunWithInterrupt(50000, 500000); err != nil {
 		t.Fatal(err)
 	}
 	if p.pc-1 == 0o406 {

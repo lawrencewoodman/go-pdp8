@@ -1,4 +1,4 @@
-package main
+package pdp8
 
 import (
 	"fmt"

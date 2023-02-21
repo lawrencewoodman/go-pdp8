@@ -2,7 +2,7 @@
  * Test helper functions
  */
 
-package main
+package pdp8
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 )
 
 // Load paper tape in RIM format
-func loadRIMTape(t *testing.T, p *pdp8, _tty *headlessTty, filename string) {
+func loadRIMTape(t *testing.T, p *Pdp8, _tty *headlessTty, filename string) {
 	rimLowSpeedLoader := map[uint]uint{
 		0o7756: 0o6032,
 		0o7757: 0o6031,
@@ -48,7 +48,7 @@ func loadRIMTape(t *testing.T, p *pdp8, _tty *headlessTty, filename string) {
 	cyclesCount := 10000
 	for {
 		// Run RIM loader to load the paper tape
-		if err := p.runWithInterrupt(50000, 50000); err != nil {
+		if err := p.RunWithInterrupt(50000, 50000); err != nil {
 			t.Fatal(err)
 		}
 		cyclesCount--
@@ -63,7 +63,7 @@ func loadRIMTape(t *testing.T, p *pdp8, _tty *headlessTty, filename string) {
 }
 
 // Load paper tape in binary format
-func loadBINTape(t *testing.T, p *pdp8, _tty *headlessTty, filename string) {
+func loadBINTape(t *testing.T, p *Pdp8, _tty *headlessTty, filename string) {
 	// Load the BIN loader
 	loadRIMTape(t, p, _tty, filepath.Join("fixtures", "dec-08-lbaa.rim"))
 
@@ -81,7 +81,7 @@ func loadBINTape(t *testing.T, p *pdp8, _tty *headlessTty, filename string) {
 
 	// Run binary loader to load maindec tape
 	// TODO: Is this long enough?
-	if err := p.runWithInterrupt(50000, 5000000); err != nil {
+	if err := p.RunWithInterrupt(50000, 5000000); err != nil {
 		t.Fatal(err)
 	}
 

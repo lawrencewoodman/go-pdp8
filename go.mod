@@ -1,4 +1,4 @@
-module github.com/lawrencewoodman/gopdp8
+module github.com/lawrencewoodman/go-pdp8
 
 go 1.19
 
