@@ -255,7 +255,7 @@ func (p *PDP8) fetch() (opCode uint, opAddr uint) {
 	return opCode, opAddr
 }
 
-// Returns (hltExecuted, error)
+// Returns (hltExecuted, cyclesLeft, error)
 // TODO: Improve cycle accuracy and return number left/over?
 func (p *PDP8) run(cycles int) (bool, int, error) {
 	var err error
