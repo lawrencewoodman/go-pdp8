@@ -2,7 +2,7 @@
  * Accept key presses from the console in raw mode
  *
  * This means we can read single key presses without waiting for a
- * newline.  RawTermReader implements io.ReadCloser
+ * newline.  RawTerm implements io.ReadCloser
  *
  * Copyright (C) 2023 Lawrence Woodman <lwoodman@vlifesystems.com>
  *
@@ -21,7 +21,7 @@ import (
 	"os"
 )
 
-type RawTermReader struct {
+type RawTerm struct {
 	state      *term.State // stdin original terminal state
 	stdinch    chan byte   // Channel used to receive key presses
 	keyWaiting bool        // If a key is waiting
@@ -29,8 +29,8 @@ type RawTermReader struct {
 	err        error       // An error if raised
 }
 
-func NewRawTermReader() (*RawTermReader, error) {
-	r := &RawTermReader{}
+func NewRawTerm() (*RawTerm, error) {
+	r := &RawTerm{}
 	var err error
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return nil, errors.New("stdin/stdout should be terminal")
@@ -66,7 +66,7 @@ func NewRawTermReader() (*RawTermReader, error) {
 // This reports if it couldn't restore the terminal so it's
 // pretty important to handle this error rather than ignore errors
 // from Close()
-func (r *RawTermReader) Close() error {
+func (r *RawTerm) Close() error {
 	close(r.stdinch)
 	if err := term.Restore(int(os.Stdin.Fd()), r.state); err != nil {
 		return fmt.Errorf("failed to restore terminal: %s", err)
@@ -74,7 +74,7 @@ func (r *RawTermReader) Close() error {
 	return nil
 }
 
-func (r *RawTermReader) Read(p []byte) (n int, err error) {
+func (r *RawTerm) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -91,8 +91,8 @@ func (r *RawTermReader) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// Returns if a key is waiting to be read
-func (r *RawTermReader) isKeyWaiting() bool {
+// isKeyWaiting returns if a key is waiting to be read
+func (r *RawTerm) isKeyWaiting() bool {
 	if r.keyWaiting {
 		return true
 	}
@@ -108,8 +108,8 @@ func (r *RawTermReader) isKeyWaiting() bool {
 	return r.keyWaiting
 }
 
-// Returns a string representing the key read
-func (r *RawTermReader) getKey() (byte, error) {
+// getKey returns the key read and an error
+func (r *RawTerm) getKey() (byte, error) {
 	var key byte
 	if r.err != nil {
 		return 0, r.err
