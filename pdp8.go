@@ -9,6 +9,7 @@
 package pdp8
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +31,6 @@ type PDP8 struct {
 	deviceNumbers []int         // The device numbers currently registered
 }
 
-// TODO: Put this in a separate package as New
 func New() *PDP8 {
 	p := &PDP8{}
 	p.pc = 0o200
@@ -58,7 +58,85 @@ func printPunchHoles(n uint) {
 	fmt.Printf("%05b %03b\r\n", (n&0o370)>>3, n&0o7)
 }
 
-// TODO: Remove this or change it to a RIM loader?
+// Load paper tape in RIM format
+func (p *PDP8) LoadRIMTape(tty *TTY, filename string) error {
+	rimLowSpeedLoader := map[uint]uint{
+		0o7756: 0o6032,
+		0o7757: 0o6031,
+		0o7760: 0o5357,
+		0o7761: 0o6036,
+		0o7762: 0o7106,
+		0o7763: 0o7006,
+		0o7764: 0o7510,
+		0o7765: 0o5357,
+		0o7766: 0o7006,
+		0o7767: 0o6031,
+		0o7770: 0o5367,
+		0o7771: 0o6034,
+		0o7772: 0o7420,
+		0o7773: 0o3776,
+		0o7774: 0o3376,
+		0o7775: 0o5356,
+		0o7776: 0o0,
+		0o7777: 0o0,
+	}
+
+	for addr, v := range rimLowSpeedLoader {
+		p.mem[addr] = v
+	}
+
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Attach Paper tape in RIM format
+	tty.ReaderAttachTape(bufio.NewReader(f))
+
+	// Start of RIM loader
+	p.pc = 0o7756
+
+	// Start the punched tape reader
+	tty.ReaderStart()
+
+	// Run and panic if HLT
+	runNoHlt := func(p *PDP8, cycles int) error {
+		hlt, err := p.RunWithInterrupt(cycles/10, cycles)
+		if err != nil {
+			return err
+		}
+
+		// TODO: This won't work with autostarting RIM tapes
+		if hlt {
+			panic(fmt.Sprintf("HLT at PC: %04o", p.pc-1))
+		}
+		return nil
+	}
+
+	for !tty.ReaderIsEOF() {
+		// Run RIM loader to load the paper tape
+		if runNoHlt(p, 100); err != nil {
+			return err
+		}
+	}
+	// Stop the punched tape reader
+	tty.ReaderStop()
+
+	// Run another time in case finishes between EOF and handling last
+	// value read
+	if runNoHlt(p, 10000); err != nil {
+		return err
+	}
+
+	// TODO: This won't work with autostarting RIM tapes
+	if !tty.ReaderIsEOF() || !(p.pc == 0o7756 || p.pc == 0o7760) {
+		return fmt.Errorf("RIM loader didn't finish, PC: %04o", p.pc)
+	}
+	return nil
+}
+
+// TODO: Remove this and implement a BIN loader
 func (p *PDP8) Load(filename string) error {
 	var n int
 	var c uint
@@ -242,13 +320,6 @@ func (p *PDP8) fetch() (opCode uint, opAddr uint) {
 			}
 			opAddr = p.mem[opAddr]
 		}
-	}
-
-	// TODO: This is wrong because -v could be passed earlier without
-	// TODO: pc or sr
-	// TODO: Remove this as no longer relevant for package
-	if len(os.Args) >= 5 {
-		fmt.Printf("PC: %04o  IR:  %04o  LAC: %05o\r\n", p.pc, p.ir, p.lac)
 	}
 
 	p.pc = mask(p.pc + 1)

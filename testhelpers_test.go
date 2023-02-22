@@ -12,76 +12,13 @@ import (
 	"testing"
 )
 
-// Load paper tape in RIM format
-func loadRIMTape(t *testing.T, p *PDP8, tty *TTY, filename string) {
-	rimLowSpeedLoader := map[uint]uint{
-		0o7756: 0o6032,
-		0o7757: 0o6031,
-		0o7760: 0o5357,
-		0o7761: 0o6036,
-		0o7762: 0o7106,
-		0o7763: 0o7006,
-		0o7764: 0o7510,
-		0o7765: 0o5357,
-		0o7766: 0o7006,
-		0o7767: 0o6031,
-		0o7770: 0o5367,
-		0o7771: 0o6034,
-		0o7772: 0o7420,
-		0o7773: 0o3776,
-		0o7774: 0o3376,
-		0o7775: 0o5356,
-		0o7776: 0o0,
-		0o7777: 0o0,
-	}
-
-	for addr, v := range rimLowSpeedLoader {
-		p.mem[addr] = v
-	}
-
-	f, err := os.Open(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	// Attach Paper tape in RIM format
-	tty.ReaderAttachTape(bufio.NewReader(f))
-
-	// Start of RIM loader
-	p.pc = 0o7756
-
-	// Start the punched tape reader
-	tty.ReaderStart()
-
-	// TODO: Handle cycles count properly from Run
-	for cyclesCount := 0; cyclesCount < 10000; cyclesCount++ {
-		// Run RIM loader to load the paper tape
-		hlt, err := p.RunWithInterrupt(50000, 50000)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if hlt {
-			t.Fatalf("HLT at PC: %04o", p.pc-1)
-		}
-
-		if tty.ReaderIsEOF() {
-			break
-		}
-	}
-	// Stop the punched tape reader
-	tty.ReaderStop()
-
-	if !tty.ReaderIsEOF() || !(p.pc == 0o7756 || p.pc == 0o7760) {
-		t.Fatalf("RIM loader didn't finish, PC: %04o", p.pc)
-	}
-}
-
 // Load paper tape in binary format
 func loadBINTape(t *testing.T, p *PDP8, tty *TTY, filename string) {
 	// Load the BIN loader
-	loadRIMTape(t, p, tty, filepath.Join("fixtures", "dec-08-lbaa.rim"))
+	err := p.LoadRIMTape(tty, filepath.Join("fixtures", "dec-08-lbaa-pm.rim"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	f, err := os.Open(filename)
 	if err != nil {
@@ -102,16 +39,22 @@ func loadBINTape(t *testing.T, p *PDP8, tty *TTY, filename string) {
 	// Start the punched tape reader
 	tty.ReaderStart()
 
-	// Run binary loader to load maindec tape
-	// TODO: Is this long enough?
-	hlt, err := p.RunWithInterrupt(50000, 5000000)
-	if err != nil {
-		t.Fatal(err)
+	var hlt bool = false
+	for !tty.ReaderIsEOF() && !hlt {
+		// Run binary loader to load paper tape
+		hlt, err = p.RunWithInterrupt(1000, 10000)
+		if err != nil {
+			fmt.Printf("hlt\n")
+			t.Fatal(err)
+		}
 	}
 
 	// Stop the punched tape reader
 	tty.ReaderStop()
 
+	// TODO: potentially could finish run at end of tape
+	// TODO: before HLT is executed
+	// TODO: need to check for this
 	if !hlt {
 		t.Errorf("Failed to execute HLT at PC: %04o", p.pc-1)
 	}
