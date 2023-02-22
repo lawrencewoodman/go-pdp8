@@ -140,11 +140,16 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 					// TODO: use a flag to exit nicely
 				}
 
-				// TODO: Make this lower 7 bits
+				// TODO: Make this lower 7 bits or what about reader?
 				// OR the key with the lower 8 bits of AC without changing L
-				// NOTE: Bit 8 (LSB bit 0) is set to 1 for keyboard input
-				lac = lac | (uint(t.ttiInputBuffer) & 0o377)
+				lac |= (uint(t.ttiInputBuffer) & 0o377)
+
 				t.ttiInputBufferEmpty = true
+			}
+			if !t.ttiIsReaderInput {
+				// Bit 8 (LSB bit 0) is set to 1 for keyboard input
+				// TODO: Check this is correct
+				lac |= 0o200
 			}
 		}
 	case 0o4: // Teleprinter
