@@ -119,18 +119,15 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 	device := (ir >> 3) & 0o77
 	switch device {
 	case 0o3: // Keyboard
+		if err := t.poll(); err != nil {
+			return pc, lac, err
+		}
 		if (ir & 0o1) != 0 { // KSF - Skip if ready
-			if err := t.poll(); err != nil {
-				return pc, lac, err
-			}
 			if t.ttiReadyFlag {
 				pc = mask(pc + 1)
 			}
 		}
 		if (ir & 0o2) != 0 { // KCC - Clear AC and Flag
-			if err := t.poll(); err != nil {
-				return pc, lac, err
-			}
 			t.ttiReadyFlag = false
 			lac = (lac & 0o10000) // Zero AC but keep L
 		}
