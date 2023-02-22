@@ -9,7 +9,7 @@
  * Licensed under an MIT licence.  Please see LICENCE.md for details.
  */
 
-// TODO: Put in separate package?
+// TODO: Put in separate package? - rawterm - then change struct to RawTerm? and include writer so that can be used for in and out?
 // TODO: Use via an interface as this isn't relevant for many uses
 package pdp8
 
@@ -63,6 +63,9 @@ func NewRawTermReader() (*RawTermReader, error) {
 	return r, nil
 }
 
+// This reports if it couldn't restore the terminal so it's
+// pretty important to handle this error rather than ignore errors
+// from Close()
 func (r *RawTermReader) Close() error {
 	close(r.stdinch)
 	if err := term.Restore(int(os.Stdin.Fd()), r.state); err != nil {

@@ -5,13 +5,15 @@
 package pdp8
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 )
 
 // Load paper tape in RIM format
-func loadRIMTape(t *testing.T, p *PDP8, tty *headlessTty, filename string) {
+func loadRIMTape(t *testing.T, p *PDP8, tty *TTY, filename string) {
 	rimLowSpeedLoader := map[uint]uint{
 		0o7756: 0o6032,
 		0o7757: 0o6031,
@@ -37,16 +39,23 @@ func loadRIMTape(t *testing.T, p *PDP8, tty *headlessTty, filename string) {
 		p.mem[addr] = v
 	}
 
-	// Attach Paper tape in RIM format
-	if err := tty.attachReaderTape(filename); err != nil {
+	f, err := os.Open(filename)
+	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
+
+	// Attach Paper tape in RIM format
+	tty.ReaderAttachTape(bufio.NewReader(f))
 
 	// Start of RIM loader
 	p.pc = 0o7756
 
-	cyclesCount := 10000
-	for {
+	// Start the punched tape reader
+	tty.ReaderStart()
+
+	// TODO: Handle cycles count properly from Run
+	for cyclesCount := 0; cyclesCount < 10000; cyclesCount++ {
 		// Run RIM loader to load the paper tape
 		hlt, err := p.RunWithInterrupt(50000, 50000)
 		if err != nil {
@@ -54,29 +63,34 @@ func loadRIMTape(t *testing.T, p *PDP8, tty *headlessTty, filename string) {
 		}
 
 		if hlt {
-			t.Errorf("HLT at PC: %04o", p.pc-1)
+			t.Fatalf("HLT at PC: %04o", p.pc-1)
 		}
 
-		cyclesCount--
-		if tty.isEOF() || cyclesCount == 0 {
+		if tty.ReaderIsEOF() {
 			break
 		}
 	}
+	// Stop the punched tape reader
+	tty.ReaderStop()
 
-	if !tty.isEOF() || !(p.pc == 0o7756 || p.pc == 0o7760) {
+	if !tty.ReaderIsEOF() || !(p.pc == 0o7756 || p.pc == 0o7760) {
 		t.Fatalf("RIM loader didn't finish, PC: %04o", p.pc)
 	}
 }
 
 // Load paper tape in binary format
-func loadBINTape(t *testing.T, p *PDP8, tty *headlessTty, filename string) {
+func loadBINTape(t *testing.T, p *PDP8, tty *TTY, filename string) {
 	// Load the BIN loader
 	loadRIMTape(t, p, tty, filepath.Join("fixtures", "dec-08-lbaa.rim"))
 
-	// Run BIN loader to load supplied paper tape
-	if err := tty.attachReaderTape(filename); err != nil {
+	f, err := os.Open(filename)
+	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
+
+	// Run BIN loader to load supplied paper tape
+	tty.ReaderAttachTape(bufio.NewReader(f))
 
 	p.pc = 0o7777
 
@@ -85,12 +99,18 @@ func loadBINTape(t *testing.T, p *PDP8, tty *headlessTty, filename string) {
 	// A 0 in the MSB of SR indicates a high-speed reader
 	p.sr = 0o7777
 
+	// Start the punched tape reader
+	tty.ReaderStart()
+
 	// Run binary loader to load maindec tape
 	// TODO: Is this long enough?
 	hlt, err := p.RunWithInterrupt(50000, 5000000)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Stop the punched tape reader
+	tty.ReaderStop()
 
 	if !hlt {
 		t.Errorf("Failed to execute HLT at PC: %04o", p.pc-1)
@@ -110,4 +130,20 @@ func dumpMemory(startLocation uint, mem [4096]uint) {
 		fmt.Printf("%04o ", mem[n])
 	}
 	fmt.Printf("\n")
+}
+
+// TODO: See if something like this already exists
+type dummyReadWriter struct {
+}
+
+func newDummyReadWriter() *dummyReadWriter {
+	return &dummyReadWriter{}
+}
+
+func (r *dummyReadWriter) Read(p []byte) (n int, err error) {
+	return 0, nil
+}
+
+func (r *dummyReadWriter) Write(p []byte) (n int, err error) {
+	return len(p), nil
 }

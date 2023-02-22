@@ -6,10 +6,8 @@ import (
 )
 
 func TestRunWithInterrupt_maindec_08_d01a_pb(t *testing.T) {
-	tty, err := newHeadlessTty()
-	if err != nil {
-		t.Fatal(err)
-	}
+	rw := newDummyReadWriter()
+	tty := NewTTY(rw, rw)
 	defer tty.Close() // TODO: call this from within pdp?
 	p := New()
 	if err := p.AddDevice(tty); err != nil {
@@ -48,10 +46,8 @@ func TestRunWithInterrupt_maindec_08_d01a_pb(t *testing.T) {
 }
 
 func TestRunWithInterrupt_maindec_08_d02b_pb(t *testing.T) {
-	tty, err := newHeadlessTty()
-	if err != nil {
-		t.Fatal(err)
-	}
+	rw := newDummyReadWriter()
+	tty := NewTTY(rw, rw)
 	defer tty.Close() // TODO: call this from within pdp?
 	p := New()
 	if err := p.AddDevice(tty); err != nil {
