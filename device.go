@@ -12,8 +12,6 @@
 // TODO: Put in separate package?
 package pdp8
 
-// TODO: Have some way of registering device numbers so we don't
-// TODO: don't have multiple devices with the same number
 type device interface {
 	// Is an interrupt raised?
 	// TODO: Rename to isInterrupt() ?
