@@ -21,13 +21,13 @@ import (
 )
 
 type TTY struct {
-	ttiReadyFlag        bool // TTI keyboard
-	ttiInputBuffer      byte // A value in the input buffer
-	ttiInputBufferEmpty bool // If the input buffer is empty
-	ttiIsReaderInput    bool // True if paper tape reader is being used for input
-	ttiIsReaderEOF      bool // True if no more tape to read by reader
-	ttoReadyFlag        bool // TTO printer
-	interruptWaiting    bool // If an interrupt is waiting to be processed
+	ttiReadyFlag     bool // TTI keyboard
+	ttiInputBuffer   byte // A value in the input buffer
+	ttiIsReaderInput bool // True if paper tape reader is being used for input
+	ttiIsReaderEOF   bool // True if no more tape to read by reader
+	ttiIsReaderRun   bool // If reader should run
+	ttoReadyFlag     bool // TTO printer
+	interruptWaiting bool // If an interrupt is waiting to be processed
 
 	curin   io.Reader // The current input source
 	conin   io.Reader // Console input
@@ -37,9 +37,7 @@ type TTY struct {
 }
 
 func NewTTY(conin io.Reader, conout io.Writer) *TTY {
-	return &TTY{ttiInputBufferEmpty: true,
-		conin: conin, conout: conout,
-		curin: conin}
+	return &TTY{conin: conin, conout: conout, curin: conin}
 }
 
 // Closes device but doesn't close any readers/writers
@@ -78,33 +76,39 @@ func (t *TTY) interrupt() bool {
 	t.poll()
 	defer func() { t.interruptWaiting = false }()
 	return t.interruptWaiting
+	// TODO: Support interrupts?
 }
 
-// Checks for activity on device
-func (t *TTY) poll() error {
+// TODO: rename
+func (t *TTY) read() error {
 	key := make([]byte, 1)
-	if t.ttiInputBufferEmpty {
-		n, err := t.curin.Read(key)
-		if err != nil && err != io.EOF {
-			return err
-		}
-		if err == io.EOF {
-			t.ttiIsReaderEOF = true
-		}
-		if n == 1 {
-			t.ttiInputBuffer = key[0]
-			t.ttiInputBufferEmpty = false
-			t.interruptWaiting = true
-			t.ttiReadyFlag = true
-			return nil
-		}
-	} else {
+	n, err := t.curin.Read(key)
+	if err == io.EOF {
+		t.ttiIsReaderEOF = true
+	} else if err != nil {
+		return err
+	}
+	if n == 1 {
+		t.ttiInputBuffer = key[0]
+		t.interruptWaiting = true
 		t.ttiReadyFlag = true
 	}
+	return nil
+}
+
+// Checks for activity on device and run reader if requested
+func (t *TTY) poll() error {
+	var err error
+	if (t.ttiIsReaderInput && t.ttiIsReaderRun) ||
+		(!t.ttiIsReaderInput && !t.ttiReadyFlag) {
+		err = t.read()
+		t.ttiIsReaderRun = false
+	}
+
 	if t.ttoReadyFlag {
 		t.interruptWaiting = true
 	}
-	return nil
+	return err
 }
 
 func (t *TTY) deviceNumbers() []int {
@@ -122,30 +126,34 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 		if err := t.poll(); err != nil {
 			return pc, lac, err
 		}
-		if (ir & 0o1) != 0 { // KSF - Skip if ready
+
+		// KSF - Skip if ready
+		if (ir & 0o1) == 0o1 {
 			if t.ttiReadyFlag {
 				pc = mask(pc + 1)
 			}
 		}
-		if (ir & 0o2) != 0 { // KCC - Clear AC and Flag
+
+		// KCC - Clear AC and Flag and run reader
+		if (ir & 0o2) == 0o2 {
 			t.ttiReadyFlag = false
+			t.ttiIsReaderRun = true
 			lac = (lac & 0o10000) // Zero AC but keep L
 		}
-		if (ir & 0o4) != 0 { // KRS - Read static
-			if !t.ttiInputBufferEmpty {
-				// Exit on CTRL-\ from keyboard
-				if !t.ttiIsReaderInput && t.ttiInputBuffer == 0x1C {
-					fmt.Println("Quit")
-					os.Exit(0)
-					// TODO: use a flag to exit nicely
-				}
 
-				// TODO: Make this lower 7 bits or what about reader?
-				// OR the key with the lower 8 bits of AC without changing L
-				lac |= (uint(t.ttiInputBuffer) & 0o377)
-
-				t.ttiInputBufferEmpty = true
+		// KRS - Read static
+		if (ir & 0o4) == 0o4 {
+			// Exit on CTRL-\ from keyboard
+			if !t.ttiIsReaderInput && t.ttiInputBuffer == 0x1C {
+				fmt.Println("Quit")
+				os.Exit(0)
+				// TODO: use a flag to exit nicely
 			}
+			//			fmt.Printf(" - Value: %x\n", t.ttiInputBuffer)
+			// TODO: Make this lower 7 bits or what about reader?
+			// OR the key with the lower 8 bits of AC without changing L
+			lac |= (uint(t.ttiInputBuffer) & 0o377)
+
 			if !t.ttiIsReaderInput {
 				// Bit 8 (LSB bit 0) is set to 1 for keyboard input
 				// TODO: Check this is correct
@@ -153,15 +161,15 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 			}
 		}
 	case 0o4: // Teleprinter
-		if (ir & 0o1) != 0 { // TSF  - Skip if ready
+		if (ir & 0o1) == 0o1 { // TSF  - Skip if ready
 			if t.ttoReadyFlag {
 				pc = mask(pc + 1)
 			}
 		}
-		if (ir & 0o2) != 0 { // TCF  - Clear Flag
+		if (ir & 0o2) == 0o2 { // TCF  - Clear Flag
 			t.ttoReadyFlag = false
 		}
-		if (ir & 0o4) != 0 { // TPC  - Print static
+		if (ir & 0o4) == 0o4 { // TPC  - Print static
 			// Output lower 7 bits of accumulator
 			// TODO: Why not 8 bits (0o377) ?
 			n, err := t.conout.Write([]byte{byte(lac & 0o177)})
