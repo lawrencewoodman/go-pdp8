@@ -308,12 +308,12 @@ func (p *PDP8) fetch() (opCode uint, opAddr uint) {
 
 	if opCode <= 5 { // If <= JMP and hence includes an address
 		opAddr = p.ir & 0o177
-		if (p.ir & 0o200) != 0 { // If zero page
+		if (p.ir & 0o200) == 0o200 { // If zero page
 			opAddr |= p.pc & 0o7600
 		}
 
 		// If indirect
-		if (p.ir & 0o400) != 0 {
+		if (p.ir & 0o400) == 0o400 {
 			// If auto increment address
 			if (opAddr & 0o7770) == 0o10 {
 				p.mem[opAddr] = mask(p.mem[opAddr] + 1)
@@ -405,20 +405,20 @@ func (p *PDP8) iot() error {
 // Returns whether HLT (Halt) has been executed
 func (p *PDP8) opr() bool {
 	// TODO: Check order as well as AND/OR combinations
-	if (p.ir & 0o400) == 0 { // Group 1
-		if (p.ir & 0o200) != 0 { // CLA
+	if (p.ir & 0o400) != 0o400 { // Group 1
+		if (p.ir & 0o200) == 0o200 { // CLA
 			p.lac &= 0o10000
 		}
-		if (p.ir & 0o100) != 0 { // CLL
+		if (p.ir & 0o100) == 0o100 { // CLL
 			p.lac &= 0o7777
 		}
-		if (p.ir & 0o40) != 0 { // CMA
+		if (p.ir & 0o40) == 0o40 { // CMA
 			p.lac ^= 0o7777
 		}
-		if (p.ir & 0o20) != 0 { // CML
+		if (p.ir & 0o20) == 0o20 { // CML
 			p.lac ^= 0o10000
 		}
-		if (p.ir & 0o1) != 0 { // IAC
+		if (p.ir & 0o1) == 0o1 { // IAC
 			p.lac = lmask(p.lac + 1)
 		}
 		switch p.ir & 0o16 {
@@ -438,13 +438,13 @@ func (p *PDP8) opr() bool {
 			p.lac = (p.lac & 0o10000) |
 				((p.lac >> 6) & 0o77) | ((p.lac << 6) & 0o7700)
 		}
-	} else if (p.ir & 0o1) == 0 { // Group 2
+	} else if (p.ir & 0o1) != 0o1 { // Group 2
 		var sv uint
 		// SMA, SPA, SZA, SNA, SNL, SZL
 		// TODO: Split this out to make it clearer
-		sc := ((p.ir&0o100) != 0 && (p.lac&0o4000) != 0) ||
-			((p.ir&0o40) != 0 && (p.lac&0o7777) == 0) ||
-			(p.ir&0o20) != 0 && (p.lac&0o10000) != 0
+		sc := ((p.ir&0o100) == 0o100 && (p.lac&0o4000) == 0o4000) ||
+			((p.ir&0o40) == 0o40 && (p.lac&0o7777) == 0) ||
+			(p.ir&0o20) == 0o20 && (p.lac&0o10000) == 0o10000
 		if sc {
 			sv = 0
 		} else {
@@ -453,26 +453,28 @@ func (p *PDP8) opr() bool {
 		if sv == (p.ir & 0o10) {
 			p.pc = mask(p.pc + 1)
 		}
-		if (p.ir & 0o200) != 0 { // CLA
+		if (p.ir & 0o200) == 0o200 { // CLA
 			p.lac &= 0o10000
 		}
-		if (p.ir & 0o4) != 0 { // OSR
+		if (p.ir & 0o4) == 0o4 { // OSR
 			p.lac |= p.sr
 		}
-		if (p.ir & 0o2) != 0 { // HLT
+		if (p.ir & 0o2) == 0o2 { // HLT
 			return true
 		}
 	} else { // Group 3
+		// TODO: Remove as probably not going to emulate a PDP-8/E?
+		// TODO: But then again what about on a PDP-8/I?
 		// We store MQ so that MQA and MQL can exchange MQ and AC
 		t := p.mq
-		if (p.ir & 0o201) != 0 { // CLA
+		if (p.ir & 0o201) == 0o201 { // CLA
 			p.lac &= 0o10000
 		}
-		if (p.ir & 0o21) != 0 { // MQL
+		if (p.ir & 0o21) == 0o21 { // MQL
 			p.mq = p.lac & 0o7777
 			p.lac &= 0o10000
 		}
-		if (p.ir & 0o101) != 0 { // MQA
+		if (p.ir & 0o101) == 0o101 { // MQA
 			p.lac |= t
 		}
 	}
