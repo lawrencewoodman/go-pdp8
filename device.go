@@ -13,6 +13,7 @@
 package pdp8
 
 type device interface {
+	// TODO: Export these methods?
 	// Is an interrupt raised?
 	// TODO: Rename to isInterrupt() ?
 	interrupt() bool
