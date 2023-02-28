@@ -2,6 +2,9 @@
 
 A PDP-8 emulator written in Go.
 
+## Comment Conventions
+
+Throughout the source code the bits are labeled differently to the DEC documentation.  We define bit 0 as the Least Significant Bit.
 
 ## Testing
 
