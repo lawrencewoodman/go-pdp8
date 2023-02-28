@@ -22,7 +22,7 @@ import (
  */
 var files = []fileDesc{
 	fileDesc{filename: "dec-08-lbaa-pm.rim", sources: []source{source{url: "https://ak6dn.github.io/PDP-8/MAINDEC/Binary_Loaders/decbin.rim", size: 408}, source{url: "http://bitsavers.informatik.uni-stuttgart.de/bits/DEC/pdp8/papertapeImages/set2/tray2/dec-08-lbaa-pm_5-10-67.bin", size: 673}}},
-	fileDesc{filename: "maindec-08-d01a-pb.bin", sources: []source{source{url: "http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec/maindec-08-d01a-pb.bin", size: 4328}}},
+	fileDesc{filename: "maindec-08-d01a-pb.bin", sources: []source{source{url: "http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec/maindec-08-d01a-pb.bin", size: 4328}, source{url: "https://svn.so-much-stuff.com/svn/trunk/pdp8/src/dec/maindec-08-d01/maindec-08-d01a-pb", size: 4328}}},
 	fileDesc{filename: "maindec-08-d02b-pb.bin", sources: []source{source{url: "http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec/maindec-08-d02b-pb.bin", size: 1876}}},
 	fileDesc{filename: "maindec-08-d2ba-pb.bin", sources: []source{source{url: "https://svn.so-much-stuff.com/svn/trunk/pdp8/src/dec/maindec-08-d2b/maindec-08-d2ba-pb", size: 1277}}},
 }
