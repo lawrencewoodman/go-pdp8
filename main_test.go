@@ -40,6 +40,7 @@ func checkMaindecFiles() bool {
 	expectedMaindecFiles := []string{
 		"maindec-08-d01a-pb.bin",
 		"maindec-08-d02b-pb.bin",
+		"maindec-08-d2ba-pb.bin",
 	}
 	missing := false
 	for _, mf := range expectedMaindecFiles {

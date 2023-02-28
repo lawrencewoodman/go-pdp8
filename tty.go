@@ -15,6 +15,7 @@
 package pdp8
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,12 +25,14 @@ type TTY struct {
 	ttiReadyFlag     bool // TTI keyboard
 	ttiInputBuffer   byte // A value in the input buffer
 	ttiIsReaderInput bool // True if paper tape reader is being used for input
+	ttiIsPunchOutput bool // True if paper tape punch is being used for output
 	ttiIsReaderEOF   bool // True if no more tape to read by reader
 	ttiIsReaderRun   bool // If reader should run
 	ttoReadyFlag     bool // TTO printer
 	interruptWaiting bool // If an interrupt is waiting to be processed
 
 	curin   io.Reader // The current input source
+	curout  io.Writer // The current output destination
 	conin   io.Reader // Console input
 	conout  io.Writer // Console output
 	tapein  io.Reader // Paper tape reader input
@@ -37,7 +40,8 @@ type TTY struct {
 }
 
 func NewTTY(conin io.Reader, conout io.Writer) *TTY {
-	return &TTY{conin: conin, conout: conout, curin: conin}
+	return &TTY{conin: conin, conout: conout,
+		curin: conin, curout: conout}
 }
 
 // Closes device but doesn't close any readers/writers
@@ -68,6 +72,25 @@ func (t *TTY) ReaderStop() {
 // Returns whether the paper tape reader is finishing reading a tape
 func (t *TTY) ReaderIsEOF() bool {
 	return t.ttiIsReaderEOF
+}
+
+// Attach a punched tape to the punch
+func (t *TTY) PunchAttachTape(tapeout io.Writer) {
+	t.tapeout = tapeout
+}
+
+// Tell the paper tape punch to start punching the tape
+func (t *TTY) PunchStart() {
+	t.ttiIsPunchOutput = true
+	t.curout = t.tapeout
+	// TODO: Find out if printer is disabled during punching
+	// TODO: It seems obvious that it must be, but check
+}
+
+// Tell the paper tape pucnh to stop punching the tape
+func (t *TTY) PunchStop() {
+	t.ttiIsPunchOutput = false
+	t.curout = t.conout
 }
 
 // Return if there is an interrupt raised
@@ -119,14 +142,14 @@ func (t *TTY) deviceNumbers() []int {
 func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 	var err error
 
+	if err := t.poll(); err != nil {
+		return pc, lac, err
+	}
+
 	// Operations are executed from right bit to left
 	device := (ir >> 3) & 0o77
 	switch device {
 	case 0o3: // Keyboard
-		if err := t.poll(); err != nil {
-			return pc, lac, err
-		}
-
 		// KSF - Skip if ready
 		if (ir & 0o1) == 0o1 {
 			if t.ttiReadyFlag {
@@ -149,7 +172,6 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 				os.Exit(0)
 				// TODO: use a flag to exit nicely
 			}
-			//			fmt.Printf(" - Value: %x\n", t.ttiInputBuffer)
 			// TODO: Make this lower 7 bits or what about reader?
 			// OR the key with the lower 8 bits of AC without changing L
 			lac |= (uint(t.ttiInputBuffer) & 0o377)
@@ -170,14 +192,18 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 			t.ttoReadyFlag = false
 		}
 		if (ir & 0o4) == 0o4 { // TPC  - Print static
-			// Output lower 7 bits of accumulator
-			// TODO: Why not 8 bits (0o377) ?
-			n, err := t.conout.Write([]byte{byte(lac & 0o177)})
+			ttyMask := uint(0o177) // Use 7 bit mask for keyboard
+			if t.ttiIsPunchOutput {
+				// Use 8-bit mask for punch
+				ttyMask = uint(0o377)
+			}
+
+			n, err := t.curout.Write([]byte{byte(lac & ttyMask)})
 			if err != nil {
-				return pc, lac, fmt.Errorf("conout: %s", err)
+				return pc, lac, fmt.Errorf("TTY: %s", err)
 			}
 			if n != 1 {
-				return pc, lac, fmt.Errorf("conout: write failed")
+				return pc, lac, errors.New("TTY: write failed")
 			}
 			t.ttoReadyFlag = true
 		}
