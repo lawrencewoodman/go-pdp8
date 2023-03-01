@@ -271,6 +271,7 @@ func (p *PDP8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) (bool, er
 		}
 
 		// Poll for interrupts if interrupts enabled
+		// TODO: Test interrupts
 		if p.ien {
 			for _, d := range p.devices {
 				if d.interrupt() {

@@ -25,6 +25,7 @@ var files = []fileDesc{
 	fileDesc{filename: "maindec-08-d01a-pb.bin", sources: []source{source{url: "http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec/maindec-08-d01a-pb.bin", size: 4328}, source{url: "https://svn.so-much-stuff.com/svn/trunk/pdp8/src/dec/maindec-08-d01/maindec-08-d01a-pb", size: 4328}}},
 	fileDesc{filename: "maindec-08-d02b-pb.bin", sources: []source{source{url: "http://dustyoldcomputers.com/pdp-common/reference/papertapes/maindec/maindec-08-d02b-pb.bin", size: 1876}}},
 	fileDesc{filename: "maindec-08-d2ba-pb.bin", sources: []source{source{url: "https://svn.so-much-stuff.com/svn/trunk/pdp8/src/dec/maindec-08-d2b/maindec-08-d2ba-pb", size: 1277}}},
+	fileDesc{filename: "maindec-08-d2pe-pb.bin", sources: []source{source{url: "https://deramp.com/downloads/mfe_archive/011-Digital%20Equipment%20Corporation/01%20DEC%20PDP-8%20Family%20Software/03%20MAINDEC%20Maintenance%20progams/MAINDEC%2008/MAINDEC-08%20D2PE%20ASR33%20ASR35%20Test%20Family%20Part%201/maindec-08-d2pe-pb", size: 2036}}},
 }
 
 func downloadFile(destinationDir string, desc fileDesc) error {

@@ -99,7 +99,6 @@ func (t *TTY) interrupt() bool {
 	t.poll()
 	defer func() { t.interruptWaiting = false }()
 	return t.interruptWaiting
-	// TODO: Support interrupts?
 }
 
 // TODO: rename
@@ -161,6 +160,9 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 		if (ir & 0o2) == 0o2 {
 			t.ttiReadyFlag = false
 			t.ttiIsReaderRun = true
+			// The reader is told to run but it won't have read anything
+			// by the time this and any other current microcoded
+			// instruction finishes
 			lac = (lac & 0o10000) // Zero AC but keep L
 		}
 
@@ -172,7 +174,6 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 				os.Exit(0)
 				// TODO: use a flag to exit nicely
 			}
-			// TODO: Make this lower 7 bits or what about reader?
 			// OR the key with the lower 8 bits of AC without changing L
 			lac |= (uint(t.ttiInputBuffer) & 0o377)
 
