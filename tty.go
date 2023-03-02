@@ -28,6 +28,7 @@ type TTY struct {
 	ttiIsPunchOutput bool // True if paper tape punch is being used for output
 	ttiIsReaderEOF   bool // True if no more tape to read by reader
 	ttiIsReaderRun   bool // If reader should run
+	ttiReaderPos     int  // The position of the reader on the tape
 	ttoReadyFlag     bool // TTO printer
 	interruptWaiting bool // If an interrupt is waiting to be processed
 
@@ -54,6 +55,7 @@ func (t *TTY) Close() error {
 func (t *TTY) ReaderAttachTape(tapein io.Reader) {
 	t.tapein = tapein
 	t.ttiIsReaderEOF = false
+	t.ttiReaderPos = 0
 }
 
 // Tell the paper tape reader to start reading the tape
@@ -72,6 +74,11 @@ func (t *TTY) ReaderStop() {
 // Returns whether the paper tape reader is finishing reading a tape
 func (t *TTY) ReaderIsEOF() bool {
 	return t.ttiIsReaderEOF
+}
+
+// ReaderPos returns the position on the paper tape, starting at 0
+func (t *TTY) ReaderPos() int {
+	return t.ttiReaderPos
 }
 
 // Attach a punched tape to the punch
@@ -114,6 +121,9 @@ func (t *TTY) read() error {
 		t.ttiInputBuffer = key[0]
 		t.interruptWaiting = true
 		t.ttiReadyFlag = true
+		if t.ttiIsReaderInput {
+			t.ttiReaderPos++
+		}
 	}
 	return nil
 }

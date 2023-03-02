@@ -1,22 +1,40 @@
 package pdp8
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-func TestRunWithInterrupt_maindec_08_d01a(t *testing.T) {
+// TODO: Move all these maindec tests into a maindec_test.go?
+
+// Setup everything neaded to load a MAINDEC test from fixtures/
+// Run teardownMaindecTest after each test
+// Returns: *PDP8, and *TTY
+func setupMaindecTest(t *testing.T, filename string) (*PDP8, *TTY) {
 	rw := newDummyReadWriter()
 	tty := NewTTY(rw, rw)
-	defer tty.Close() // TODO: call this from within pdp?
 	p := New()
 	if err := p.AddDevice(tty); err != nil {
 		t.Fatal(err)
 	}
 
-	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d01a-pb.bin"))
+	loadBINTape(t, p, tty, filepath.Join("fixtures", filename))
+
+	return p, tty
+}
+
+// Run at end of test that was setup with setupMaindecTest
+func teardownMaindecTest(t *testing.T, p *PDP8, tty *TTY) {
+	tty.Close()
+}
+
+func TestRunWithInterrupt_maindec_08_d01a(t *testing.T) {
+	p, tty := setupMaindecTest(t, "maindec-08-d01a-pb.bin")
+	defer teardownMaindecTest(t, p, tty)
+
 	p.pc = 0o1200
 	p.sr = 0o7777
 
@@ -48,15 +66,8 @@ func TestRunWithInterrupt_maindec_08_d01a(t *testing.T) {
 }
 
 func TestRunWithInterrupt_maindec_08_d02b(t *testing.T) {
-	rw := newDummyReadWriter()
-	tty := NewTTY(rw, rw)
-	defer tty.Close() // TODO: call this from within pdp?
-	p := New()
-	if err := p.AddDevice(tty); err != nil {
-		t.Fatal(err)
-	}
-
-	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d02b-pb.bin"))
+	p, tty := setupMaindecTest(t, "maindec-08-d02b-pb.bin")
+	defer teardownMaindecTest(t, p, tty)
 
 	p.pc = 0o200
 	p.sr = 0o4400
@@ -81,21 +92,12 @@ func TestRunWithInterrupt_maindec_08_d02b(t *testing.T) {
 }
 
 // Test reader against binary count test pattern
-func TestRunWithInterrupt_maindec_08_d2ba(t *testing.T) {
-	rw := newDummyReadWriter()
-	tty := NewTTY(rw, rw)
-	defer tty.Close() // TODO: call this from within pdp?
-	p := New()
-	if err := p.AddDevice(tty); err != nil {
-		t.Fatal(err)
-	}
+func TestRunWithInterrupt_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
+	p, tty := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
+	defer teardownMaindecTest(t, p, tty)
 
-	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d2ba-pb.bin"))
-
-	binaryCountTapeFilename := createBinaryCountTestTape(t)
-	defer os.Remove(binaryCountTapeFilename)
-
-	f, err := os.Open(binaryCountTapeFilename)
+	// Binary count test pattern tape
+	f, err := os.Open(filepath.Join("fixtures", "maindec-00-d2g3-pt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +127,7 @@ func TestRunWithInterrupt_maindec_08_d2ba(t *testing.T) {
 
 	// Test tape
 	hlt = false
-	for !tty.ReaderIsEOF() && !hlt {
+	for !tty.ReaderIsEOF() && !hlt && tty.ReaderPos() < 5000 {
 		hlt, err = p.RunWithInterrupt(100, 500)
 		if err != nil {
 			t.Fatal(err)
@@ -139,26 +141,56 @@ func TestRunWithInterrupt_maindec_08_d2ba(t *testing.T) {
 	tty.ReaderStop()
 }
 
-// Paper tape reader - basic input logic tests
+// Create a binary count test pattern tape
+func TestRunWithInterrupt_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
+	p, tty := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
+	defer teardownMaindecTest(t, p, tty)
+
+	ttyOut := bytes.NewBuffer(make([]byte, 0, 0))
+
+	tty.PunchAttachTape(ttyOut)
+	tty.PunchStart()
+
+	// Punch a binary count test pattern
+	p.pc = 0o200
+	p.sr = 0o2000
+
+	var outputTapeSize = 0
+	for outputTapeSize <= 5000 {
+		// Run routine
+		hlt, err := p.RunWithInterrupt(100, 5000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hlt {
+			t.Fatalf("HLT at PC: %04o", p.pc-1)
+		}
+		outputTapeSize = ttyOut.Len()
+	}
+
+	tty.PunchStop()
+
+	// Test bytes are sequential and start at 0
+	var expectedByte byte = 0
+	for _, b := range ttyOut.Bytes() {
+		if b != expectedByte {
+			t.Fatalf("bytes not sequential got: %v, want: %v", b, expectedByte)
+		}
+		expectedByte++
+	}
+}
+
+// PRG0 - Reader basic input logic tests
 //
 // Routines 3 and 4 fail because of what seems to be timing issues.
 // For the moment accepting this as it probably doesn't matter for
 // an abstract emulation.
 func TestRunWithInterrupt_maindec_08_d2pe_PRG0(t *testing.T) {
-	rw := newDummyReadWriter()
-	tty := NewTTY(rw, rw)
-	defer tty.Close() // TODO: call this from within pdp?
-	p := New()
-	if err := p.AddDevice(tty); err != nil {
-		t.Fatal(err)
-	}
+	p, tty := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
+	defer teardownMaindecTest(t, p, tty)
 
-	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d2pe-pb.bin"))
-
-	binaryCountTapeFilename := createBinaryCountTestTape(t)
-	defer os.Remove(binaryCountTapeFilename)
-
-	f, err := os.Open(binaryCountTapeFilename)
+	// Binary count test pattern tape
+	f, err := os.Open(filepath.Join("fixtures", "maindec-00-d2g3-pt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,6 +275,69 @@ func TestRunWithInterrupt_maindec_08_d2pe_PRG0(t *testing.T) {
 			t.Fatal(err)
 		}
 		runTestPRG0Routine(t, p, c.routine, c.expectedPC)
+	}
+
+	tty.ReaderStop()
+}
+
+func TestRunWithInterrupt_maindec_08_d2pe_PRG1(t *testing.T) {
+	// TODO: Test MAINDEC-08-D2PE PRG1
+	t.Skip("Not implemented yet")
+}
+
+// PRG2 - Reader test
+func TestRunWithInterrupt_maindec_08_d2pe_PRG2(t *testing.T) {
+	p, tty := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
+	defer teardownMaindecTest(t, p, tty)
+
+	// Binary count test pattern tape
+	f, err := os.Open(filepath.Join("fixtures", "maindec-00-d2g3-pt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	tty.ReaderAttachTape(f)
+	tty.ReaderStart()
+
+	// PRG2
+	p.pc = 0o200
+	p.sr = 2
+
+	// Start test
+	hlt, err := p.RunWithInterrupt(100, 500000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !hlt {
+		t.Fatalf("Failed to execute HLT PC: %04o", p.pc-1)
+	}
+
+	// Ready to set options
+	if p.pc-1 != 0o232 {
+		t.Fatalf("HLT - got: PC: %04o, want: PC: 232", p.pc-1)
+	}
+
+	// Run all tests
+	p.sr = 0
+
+	// Run routine
+	hlt = false
+	for !hlt {
+		hlt, err = p.RunWithInterrupt(100, 5000)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if !hlt {
+		t.Fatalf("Failed to execute HLT PC: %04o", p.pc-1)
+	}
+
+	// Routine ends successfully
+	if p.pc-1 != 0o274 {
+		t.Errorf("HLT - PC got: %04o, want: %04o", p.pc-1, 0o274)
 	}
 
 	tty.ReaderStop()

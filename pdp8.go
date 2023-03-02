@@ -248,6 +248,7 @@ func (p *PDP8) AddDevice(d device) error {
 	return nil
 }
 
+// TODO: Combine RunWithInterrupt and Run
 // Returns (hlt, err)  hlt = whether executed HLT instruction
 func (p *PDP8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) (bool, error) {
 	var err error

@@ -3,6 +3,7 @@
 
 # MAINDEC paper tapes
 fixtures/maindec*.bin
+fixtures/maindec*-pt
 
 # DEC paper tapes
 fixtures/dec*.rim

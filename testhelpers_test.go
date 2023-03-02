@@ -64,47 +64,6 @@ func loadBINTape(t *testing.T, p *PDP8, tty *TTY, filename string) {
 	}
 }
 
-// Create a binary count test pattern tape
-// Uses maindec-08-d2ba to punch the tape
-// Returns the filename of the binary count test tape
-func createBinaryCountTestTape(t *testing.T) string {
-	rw := newDummyReadWriter()
-	tty := NewTTY(rw, rw)
-	defer tty.Close() // TODO: call this from within pdp?
-	p := New()
-	if err := p.AddDevice(tty); err != nil {
-		t.Fatal(err)
-	}
-
-	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d2ba-pb.bin"))
-
-	f, err := os.CreateTemp("", "go-test-pdp8-binary-count-test-pattern-tape")
-	if err != nil {
-		t.Fatal(err)
-	}
-	filename := f.Name()
-	defer f.Close()
-
-	tty.PunchAttachTape(f)
-	tty.PunchStart()
-
-	// Punch a binary count test pattern
-	p.pc = 0o200
-	p.sr = 0o2000
-
-	// Run test
-	hlt, err := p.RunWithInterrupt(100, 5000)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if hlt {
-		t.Fatalf("HLT at PC: %04o", p.pc-1)
-	}
-
-	tty.PunchStop()
-	return filename
-}
-
 // TODO: For debugging - do we need this here?
 func dumpMemory(startLocation uint, mem [4096]uint) {
 	for n := startLocation; n <= 0o7777; n++ {

@@ -42,6 +42,7 @@ func checkMaindecFiles() bool {
 		"maindec-08-d02b-pb.bin",
 		"maindec-08-d2ba-pb.bin",
 		"maindec-08-d2pe-pb.bin",
+		"maindec-00-d2g3-pt",
 	}
 	missing := false
 	for _, mf := range expectedMaindecFiles {
