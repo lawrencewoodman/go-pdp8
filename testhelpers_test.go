@@ -42,7 +42,7 @@ func loadBINTape(t *testing.T, p *PDP8, tty *TTY, filename string) {
 	var hlt bool = false
 	for !tty.ReaderIsEOF() && !hlt {
 		// Run binary loader to load paper tape
-		hlt, err = p.RunWithInterrupt(1000, 10000)
+		hlt, _, err = p.Run(10000)
 		if err != nil {
 			fmt.Printf("hlt\n")
 			t.Fatal(err)

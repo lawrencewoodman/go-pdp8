@@ -102,7 +102,7 @@ func (p *PDP8) LoadRIMTape(tty *TTY, filename string) error {
 
 	// Run and panic if HLT
 	runNoHlt := func(p *PDP8, cycles int) error {
-		hlt, err := p.RunWithInterrupt(cycles/10, cycles)
+		hlt, _, err := p.Run(cycles)
 		if err != nil {
 			return err
 		}
@@ -248,6 +248,44 @@ func (p *PDP8) AddDevice(d device) error {
 	return nil
 }
 
+// Returns (hlt, cyclesLeft, error)
+// TODO: Improve cycle accuracy and return number left/over?
+// TODO: Test cyclesLeft
+func (p *PDP8) Run(cycles int) (bool, int, error) {
+	var err error
+	var hlt bool
+	// TODO: Work out most appropriate interrupt frequency
+	const cyclesPerInterrupt = 100
+	interruptCountdown := cyclesPerInterrupt
+
+	for cycles > 0 {
+		opCode, opAddr := p.fetch()
+		hlt, err = p.execute(opCode, opAddr)
+		if err != nil || hlt {
+			break
+		}
+
+		if p.ien {
+			interruptCountdown--
+			if interruptCountdown == 0 {
+				interruptCountdown = cyclesPerInterrupt
+				for _, d := range p.devices {
+					if d.interrupt() {
+						p.mem[0] = p.pc
+						p.pc = 1
+						p.ien = false
+						break
+					}
+				}
+			}
+		}
+
+		cycles--
+	}
+	return hlt, cycles, err
+}
+
+/*
 // TODO: Combine RunWithInterrupt and Run
 // Returns (hlt, err)  hlt = whether executed HLT instruction
 func (p *PDP8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) (bool, error) {
@@ -286,6 +324,7 @@ func (p *PDP8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) (bool, er
 	}
 	return hlt, err
 }
+*/
 
 // Set Program Counter
 func (p *PDP8) SetPC(pc uint) {
@@ -326,23 +365,6 @@ func (p *PDP8) fetch() (opCode uint, opAddr uint) {
 
 	p.pc = mask(p.pc + 1)
 	return opCode, opAddr
-}
-
-// Returns (hltExecuted, cyclesLeft, error)
-// TODO: Improve cycle accuracy and return number left/over?
-func (p *PDP8) run(cycles int) (bool, int, error) {
-	var err error
-	var hlt bool
-
-	for cycles > 0 {
-		opCode, opAddr := p.fetch()
-		hlt, err = p.execute(opCode, opAddr)
-		if err != nil || hlt {
-			break
-		}
-		cycles--
-	}
-	return hlt, cycles, err
 }
 
 // Returns (hltExecuted, error)

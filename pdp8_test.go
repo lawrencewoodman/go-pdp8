@@ -31,7 +31,7 @@ func teardownMaindecTest(t *testing.T, p *PDP8, tty *TTY) {
 	tty.Close()
 }
 
-func TestRunWithInterrupt_maindec_08_d01a(t *testing.T) {
+func TestRun_maindec_08_d01a(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d01a-pb.bin")
 	defer teardownMaindecTest(t, p, tty)
 
@@ -39,7 +39,7 @@ func TestRunWithInterrupt_maindec_08_d01a(t *testing.T) {
 	p.sr = 0o7777
 
 	// Run test
-	hlt, err := p.RunWithInterrupt(50000, 500000)
+	hlt, _, err := p.Run(500000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestRunWithInterrupt_maindec_08_d01a(t *testing.T) {
 		t.Errorf("First HLT - got: LAC: %05o PC: %04o, want: LAC: 00000, PC: 1202", p.lac, p.pc-1)
 	}
 
-	hlt, err = p.RunWithInterrupt(50000, 50000000)
+	hlt, _, err = p.Run(50000000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestRunWithInterrupt_maindec_08_d01a(t *testing.T) {
 	// TODO: Work out how this should report success/error
 }
 
-func TestRunWithInterrupt_maindec_08_d02b(t *testing.T) {
+func TestRun_maindec_08_d02b(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d02b-pb.bin")
 	defer teardownMaindecTest(t, p, tty)
 
@@ -73,7 +73,7 @@ func TestRunWithInterrupt_maindec_08_d02b(t *testing.T) {
 	p.sr = 0o4400
 
 	// Run test
-	hlt, err := p.RunWithInterrupt(50000, 500000)
+	hlt, _, err := p.Run(500000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestRunWithInterrupt_maindec_08_d02b(t *testing.T) {
 }
 
 // Test reader against binary count test pattern
-func TestRunWithInterrupt_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
+func TestRun_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
 	defer teardownMaindecTest(t, p, tty)
 
@@ -111,7 +111,7 @@ func TestRunWithInterrupt_maindec_08_d2ba_test_binary_count_pattern(t *testing.T
 	p.sr = 0o4002
 
 	// Run test to sync tape
-	hlt, err := p.RunWithInterrupt(100, 500000)
+	hlt, _, err := p.Run(500000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestRunWithInterrupt_maindec_08_d2ba_test_binary_count_pattern(t *testing.T
 	// Test tape
 	hlt = false
 	for !tty.ReaderIsEOF() && !hlt && tty.ReaderPos() < 5000 {
-		hlt, err = p.RunWithInterrupt(100, 500)
+		hlt, _, err = p.Run(500)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -142,7 +142,7 @@ func TestRunWithInterrupt_maindec_08_d2ba_test_binary_count_pattern(t *testing.T
 }
 
 // Create a binary count test pattern tape
-func TestRunWithInterrupt_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
+func TestRun_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
 	defer teardownMaindecTest(t, p, tty)
 
@@ -158,7 +158,7 @@ func TestRunWithInterrupt_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) 
 	var outputTapeSize = 0
 	for outputTapeSize <= 5000 {
 		// Run routine
-		hlt, err := p.RunWithInterrupt(100, 5000)
+		hlt, _, err := p.Run(5000)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -185,7 +185,7 @@ func TestRunWithInterrupt_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) 
 // Routines 3 and 4 fail because of what seems to be timing issues.
 // For the moment accepting this as it probably doesn't matter for
 // an abstract emulation.
-func TestRunWithInterrupt_maindec_08_d2pe_PRG0(t *testing.T) {
+func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
 	defer teardownMaindecTest(t, p, tty)
 
@@ -210,7 +210,7 @@ func TestRunWithInterrupt_maindec_08_d2pe_PRG0(t *testing.T) {
 		p.ien = false
 
 		// Start test
-		hlt, err := p.RunWithInterrupt(100, 500000)
+		hlt, _, err := p.Run(500000)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -230,7 +230,7 @@ func TestRunWithInterrupt_maindec_08_d2pe_PRG0(t *testing.T) {
 		// Run routine
 		hlt = false
 		for !hlt {
-			hlt, err = p.RunWithInterrupt(100, 5000)
+			hlt, _, err = p.Run(5000)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -280,13 +280,13 @@ func TestRunWithInterrupt_maindec_08_d2pe_PRG0(t *testing.T) {
 	tty.ReaderStop()
 }
 
-func TestRunWithInterrupt_maindec_08_d2pe_PRG1(t *testing.T) {
+func TestRun_maindec_08_d2pe_PRG1(t *testing.T) {
 	// TODO: Test MAINDEC-08-D2PE PRG1
 	t.Skip("Not implemented yet")
 }
 
 // PRG2 - Reader test
-func TestRunWithInterrupt_maindec_08_d2pe_PRG2(t *testing.T) {
+func TestRun_maindec_08_d2pe_PRG2(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
 	defer teardownMaindecTest(t, p, tty)
 
@@ -305,7 +305,7 @@ func TestRunWithInterrupt_maindec_08_d2pe_PRG2(t *testing.T) {
 	p.sr = 2
 
 	// Start test
-	hlt, err := p.RunWithInterrupt(100, 500000)
+	hlt, _, err := p.Run(500000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func TestRunWithInterrupt_maindec_08_d2pe_PRG2(t *testing.T) {
 	// Run routine
 	hlt = false
 	for !hlt {
-		hlt, err = p.RunWithInterrupt(100, 5000)
+		hlt, _, err = p.Run(5000)
 		if err != nil {
 			t.Fatal(err)
 		}
