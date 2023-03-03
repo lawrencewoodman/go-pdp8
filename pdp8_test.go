@@ -145,7 +145,7 @@ func TestRun_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
 	defer teardownMaindecTest(t, p, tty)
 
-	ttyOut := bytes.NewBuffer(make([]byte, 0, 0))
+	ttyOut := bytes.NewBuffer(make([]byte, 0, 5000))
 
 	tty.PunchAttachTape(ttyOut)
 	tty.PunchStart()
