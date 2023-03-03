@@ -2,7 +2,6 @@ package pdp8
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -247,8 +246,7 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 
 		// This isn't ideal but the best we can expect at the moment
 		if p.pc-1 == expectedPC {
-			fmt.Printf("    WARN: %s\n", t.Name())
-			fmt.Printf("          PRG0 routine: %d, Doesn't pass properly - HLT PC: %04o\n", routine, p.pc-1)
+			t.Logf("routine: %d, only a partial pass at the moment - HLT PC: %04o", routine, p.pc-1)
 			return
 		}
 
