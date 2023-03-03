@@ -123,6 +123,13 @@ func (t *TTY) read() error {
 		t.ttiReadyFlag = true
 		if t.ttiIsReaderInput {
 			t.ttiReaderPos++
+		} else {
+			// Exit on CTRL-\ from keyboard
+			if t.ttiInputBuffer == 0x1C {
+				fmt.Println("Quit")
+				os.Exit(0)
+				// TODO: use a flag to exit nicely
+			}
 		}
 	}
 	return nil
@@ -178,12 +185,6 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 
 		// KRS - Read static
 		if (ir & 0o4) == 0o4 {
-			// Exit on CTRL-\ from keyboard
-			if !t.ttiIsReaderInput && t.ttiInputBuffer == 0x1C {
-				fmt.Println("Quit")
-				os.Exit(0)
-				// TODO: use a flag to exit nicely
-			}
 			// OR the key with the lower 8 bits of AC without changing L
 			lac |= (uint(t.ttiInputBuffer) & 0o377)
 
