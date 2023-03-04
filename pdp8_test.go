@@ -30,6 +30,8 @@ func teardownMaindecTest(t *testing.T, p *PDP8, tty *TTY) {
 	tty.Close()
 }
 
+// MAINDEC-08-D01A
+// Instruction test part 2A
 func TestRun_maindec_08_d01a(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d01a-pb.bin")
 	defer teardownMaindecTest(t, p, tty)
@@ -64,6 +66,8 @@ func TestRun_maindec_08_d01a(t *testing.T) {
 	// TODO: Work out how this should report success/error
 }
 
+// MAINDEC-08-D02B
+// Instruction test part 2B
 func TestRun_maindec_08_d02b(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d02b-pb.bin")
 	defer teardownMaindecTest(t, p, tty)
@@ -90,6 +94,8 @@ func TestRun_maindec_08_d02b(t *testing.T) {
 	}
 }
 
+// MAINDEC-08-D2BA
+// Exercisor for the PDP-8 Teletype Paper Tape Reader
 // Test reader against binary count test pattern
 func TestRun_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
@@ -140,6 +146,8 @@ func TestRun_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
 	tty.ReaderStop()
 }
 
+// MAINDEC-08-D2BA
+// Exercisor for the PDP-8 Teletype Paper Tape Reader
 // Create a binary count test pattern tape
 func TestRun_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
@@ -179,6 +187,8 @@ func TestRun_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
 	}
 }
 
+// MAINDEC-08-D2PE
+// ASR 33/35 Teletype Tests Part 1
 // PRG0 - Reader basic input logic tests
 //
 // Routines 3 and 4 fail because of what seems to be timing issues.
@@ -279,6 +289,8 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 	tty.ReaderStop()
 }
 
+// MAINDEC-08-D2PE
+// ASR 33/35 Teletype Tests Part 1
 // PRG1 - Punch basic output logic tests
 //
 // Routines 3 and 4 fail because of what seems to be timing issues.
@@ -346,6 +358,8 @@ func TestRun_maindec_08_d2pe_PRG1(t *testing.T) {
 	tty.PunchStop()
 }
 
+// MAINDEC-08-D2PE
+// ASR 33/35 Teletype Tests Part 1
 // PRG2 - Reader test
 func TestRun_maindec_08_d2pe_PRG2(t *testing.T) {
 	p, tty := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
