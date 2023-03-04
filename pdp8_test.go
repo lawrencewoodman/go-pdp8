@@ -10,9 +10,9 @@ import (
 // TODO: Move all these maindec tests into a maindec_test.go?
 
 // Setup everything neaded to load a MAINDEC test from fixtures/
-// Run teardownMaindecTest after each test
-// Returns: *PDP8, and *TTY
-func setupMaindecTest(t *testing.T, filename string) (*PDP8, *TTY) {
+// Run returned teardownMaindecTest after each test
+// Returns: *PDP8, *TTY, teardownMaindecTest
+func setupMaindecTest(t *testing.T, filename string) (*PDP8, *TTY, func()) {
 	rw := newDummyReadWriter()
 	tty := NewTTY(rw, rw)
 	p := New()
@@ -21,20 +21,17 @@ func setupMaindecTest(t *testing.T, filename string) (*PDP8, *TTY) {
 	}
 
 	loadBINTape(t, p, tty, filepath.Join("fixtures", filename))
-
-	return p, tty
-}
-
-// Run at end of test that was setup with setupMaindecTest
-func teardownMaindecTest(t *testing.T, p *PDP8, tty *TTY) {
-	tty.Close()
+	teardownMaindecTest := func() {
+		tty.Close()
+	}
+	return p, tty, teardownMaindecTest
 }
 
 // MAINDEC-08-D01A
 // Instruction test part 2A
 func TestRun_maindec_08_d01a(t *testing.T) {
-	p, tty := setupMaindecTest(t, "maindec-08-d01a-pb.bin")
-	defer teardownMaindecTest(t, p, tty)
+	p, _, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d01a-pb.bin")
+	defer teardownMaindecTest()
 
 	p.pc = 0o1200
 	p.sr = 0o7777
@@ -69,8 +66,8 @@ func TestRun_maindec_08_d01a(t *testing.T) {
 // MAINDEC-08-D02B
 // Instruction test part 2B
 func TestRun_maindec_08_d02b(t *testing.T) {
-	p, tty := setupMaindecTest(t, "maindec-08-d02b-pb.bin")
-	defer teardownMaindecTest(t, p, tty)
+	p, _, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d02b-pb.bin")
+	defer teardownMaindecTest()
 
 	p.pc = 0o200
 	p.sr = 0o4400
@@ -98,8 +95,8 @@ func TestRun_maindec_08_d02b(t *testing.T) {
 // Exercisor for the PDP-8 Teletype Paper Tape Reader
 // Test reader against binary count test pattern
 func TestRun_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
-	p, tty := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
-	defer teardownMaindecTest(t, p, tty)
+	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
+	defer teardownMaindecTest()
 
 	// Binary count test pattern tape
 	f, err := os.Open(filepath.Join("fixtures", "maindec-00-d2g3-pt"))
@@ -150,8 +147,8 @@ func TestRun_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
 // Exercisor for the PDP-8 Teletype Paper Tape Reader
 // Create a binary count test pattern tape
 func TestRun_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
-	p, tty := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
-	defer teardownMaindecTest(t, p, tty)
+	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
+	defer teardownMaindecTest()
 
 	ttyOut := bytes.NewBuffer(make([]byte, 0, 5000))
 
@@ -196,8 +193,8 @@ func TestRun_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
 // an abstract emulation.
 // TODO: Get routine 3 and 4 to pass
 func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
-	p, tty := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
-	defer teardownMaindecTest(t, p, tty)
+	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
+	defer teardownMaindecTest()
 
 	// Binary count test pattern tape
 	f, err := os.Open(filepath.Join("fixtures", "maindec-00-d2g3-pt"))
@@ -209,8 +206,7 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 	tty.ReaderAttachTape(f)
 	tty.ReaderStart()
 
-	// ExpectedPC
-	runTestPRG0Routine := func(t *testing.T, p *PDP8, routine uint, expectedPC uint) {
+	runTestPRG0Routine := func(routine uint, expectedPC uint) {
 		// PRG0
 		p.pc = 0o200
 		p.sr = 0
@@ -283,7 +279,7 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 		if _, err := f.Seek(0, 0); err != nil {
 			t.Fatal(err)
 		}
-		runTestPRG0Routine(t, p, c.routine, c.expectedPC)
+		runTestPRG0Routine(c.routine, c.expectedPC)
 	}
 
 	tty.ReaderStop()
@@ -298,8 +294,8 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 // an abstract emulation.
 // TODO: Get routine 3 and 4 to pass
 func TestRun_maindec_08_d2pe_PRG1(t *testing.T) {
-	p, tty := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
-	defer teardownMaindecTest(t, p, tty)
+	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
+	defer teardownMaindecTest()
 
 	ttyOut := bytes.NewBuffer(make([]byte, 0, 5000))
 
@@ -362,8 +358,8 @@ func TestRun_maindec_08_d2pe_PRG1(t *testing.T) {
 // ASR 33/35 Teletype Tests Part 1
 // PRG2 - Reader test
 func TestRun_maindec_08_d2pe_PRG2(t *testing.T) {
-	p, tty := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
-	defer teardownMaindecTest(t, p, tty)
+	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
+	defer teardownMaindecTest()
 
 	// Binary count test pattern tape
 	f, err := os.Open(filepath.Join("fixtures", "maindec-00-d2g3-pt"))
