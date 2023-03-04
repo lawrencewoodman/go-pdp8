@@ -30,6 +30,7 @@ func setupMaindecTest(t *testing.T, filename string) (*PDP8, *TTY, func()) {
 // MAINDEC-08-D01A
 // Instruction test part 2A
 func TestRun_maindec_08_d01a(t *testing.T) {
+	t.Parallel()
 	p, _, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d01a-pb.bin")
 	defer teardownMaindecTest()
 
@@ -95,6 +96,7 @@ func TestRun_maindec_08_d02b(t *testing.T) {
 // Exercisor for the PDP-8 Teletype Paper Tape Reader
 // Test reader against binary count test pattern
 func TestRun_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
+	t.Parallel()
 	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
 	defer teardownMaindecTest()
 
@@ -129,7 +131,8 @@ func TestRun_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
 
 	// Test tape
 	hlt = false
-	for !tty.ReaderIsEOF() && !hlt && tty.ReaderPos() < 5000 {
+	// 4100 is 4096 (12-bits) + a few for overflow if using 12-bits
+	for !tty.ReaderIsEOF() && !hlt && tty.ReaderPos() < 4100 {
 		hlt, _, err = p.Run(500)
 		if err != nil {
 			t.Fatal(err)
@@ -193,6 +196,7 @@ func TestRun_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
 // an abstract emulation.
 // TODO: Get routine 3 and 4 to pass
 func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
+	t.Parallel()
 	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
 	defer teardownMaindecTest()
 
@@ -358,6 +362,7 @@ func TestRun_maindec_08_d2pe_PRG1(t *testing.T) {
 // ASR 33/35 Teletype Tests Part 1
 // PRG2 - Reader test
 func TestRun_maindec_08_d2pe_PRG2(t *testing.T) {
+	t.Parallel()
 	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
 	defer teardownMaindecTest()
 
