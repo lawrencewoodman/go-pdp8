@@ -8,5 +8,12 @@ fixtures/maindec*-pt
 # DEC paper tapes
 fixtures/dec*.rim
 
+# MAINDEC docs
+docs/maindec*.pdf
+
+# DEC docs
+docs/dec*.pdf
+
 # TODO: Perhaps put this in bin/
-downloadfixtures
+/downloaddocs
+/downloadfixtures
