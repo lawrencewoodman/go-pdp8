@@ -27,6 +27,7 @@ type PDP8 struct {
 	lac           uint          // Accumulator register 13th bit is Link flag
 	mq            uint          // Multiplier Quotient
 	ien           bool          // Whether interrupts are enabled
+	pendingIen    bool          // If turning on interrupts is pending
 	devices       []device      // Devices for IOT
 	deviceNumbers []int         // The device numbers currently registered
 }
@@ -280,6 +281,13 @@ func (p *PDP8) Run(cycles int) (bool, int, error) {
 			}
 		}
 
+		// The effect of ION is delayed by one instruction
+		// TODO: test this
+		if p.pendingIen {
+			p.ien = true
+			p.pendingIen = false
+		}
+
 		cycles--
 	}
 	return hlt, cycles, err
@@ -366,8 +374,9 @@ func (p *PDP8) iot() error {
 	case 0o0: // CPU
 		switch iotOp {
 		case 0o1: // ION
-			p.ien = true
+			p.pendingIen = true
 		case 0o2: // IOF
+			// IOF is immediate unlike ION
 			p.ien = false
 		default:
 			// TODO: Report an unknown op?
