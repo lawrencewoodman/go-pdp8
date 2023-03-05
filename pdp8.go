@@ -285,47 +285,6 @@ func (p *PDP8) Run(cycles int) (bool, int, error) {
 	return hlt, cycles, err
 }
 
-/*
-// TODO: Combine RunWithInterrupt and Run
-// Returns (hlt, err)  hlt = whether executed HLT instruction
-func (p *PDP8) RunWithInterrupt(cyclesPerInterrupt int, maxCycles int) (bool, error) {
-	var err error
-	var hlt bool
-	var _cyclesLeft int // Returned from run()
-
-	cyclesLeft := maxCycles
-
-	for {
-		hlt, _cyclesLeft, err = p.run(cyclesPerInterrupt)
-		if err != nil {
-			return hlt, err
-		}
-		cyclesLeft -= (cyclesPerInterrupt - _cyclesLeft)
-
-		if hlt || cyclesLeft < 0 {
-			// HLT before interrupt otherwise PC will move
-			//fmt.Printf("PC: %04o  IR:  %04o  LAC: %05o\r\n", p.pc, p.ir, p.lac)
-			// TODO: How to handle this?
-			break
-		}
-
-		// Poll for interrupts if interrupts enabled
-		// TODO: Test interrupts
-		if p.ien {
-			for _, d := range p.devices {
-				if d.interrupt() {
-					p.mem[0] = p.pc
-					p.pc = 1
-					p.ien = false
-					break
-				}
-			}
-		}
-	}
-	return hlt, err
-}
-*/
-
 // Set Program Counter
 func (p *PDP8) SetPC(pc uint) {
 	p.pc = mask(pc)
