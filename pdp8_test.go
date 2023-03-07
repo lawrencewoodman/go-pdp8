@@ -31,8 +31,18 @@ func setupMaindecTest(t *testing.T, filename string) (*PDP8, *TTY, func()) {
 // Instruction test part 2A
 func TestRun_maindec_08_d01a(t *testing.T) {
 	t.Parallel()
-	p, _, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d01a-pb.bin")
-	defer teardownMaindecTest()
+
+	rw := newDummyReadWriter()
+	// ttyOut is so that we can check output
+	ttyOut := bytes.NewBuffer(make([]byte, 0, 5000))
+	tty := NewTTY(rw, ttyOut)
+	p := New()
+	if err := p.AddDevice(tty); err != nil {
+		t.Fatal(err)
+	}
+
+	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d01a-pb.bin"))
+	defer tty.Close()
 
 	p.pc = 0o1200
 	p.sr = 0o7777
@@ -49,19 +59,28 @@ func TestRun_maindec_08_d01a(t *testing.T) {
 		t.Errorf("First HLT - got: LAC: %05o PC: %04o, want: LAC: 00000, PC: 1202", p.lac, p.pc-1)
 	}
 
-	hlt, _, err = p.Run(50000000)
-	if err != nil {
-		t.Fatal(err)
+	// Run until 2x tests have completed
+	// Bytes comparison represents:
+	//  DEL,DEL,DEL,DEL,DEL,DEL,DEL,
+	//  CR, NL, '2', 'A',
+	//  DEL,DEL,DEL,DEL,DEL,DEL,DEL,
+	//  CR, NL, '2', 'A'
+	ttyOutWant := []byte{
+		127, 127, 127, 127, 127, 127, 127,
+		13, 10, 50, 65,
+		127, 127, 127, 127, 127, 127, 127,
+		13, 10, 50, 65,
 	}
-	if !hlt {
-		t.Errorf("Failed to execute HLT PC: %04o", p.pc-1)
+	for !bytes.Equal(ttyOut.Bytes(), ttyOutWant) {
+		hlt, _, err = p.Run(5000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hlt {
+			t.Errorf("Test failed - HLT PC: %04o", p.pc-1)
+		}
 	}
-
-	// TODO: Is this success or partial success?
-	if p.pc-1 != 0o4771 {
-		t.Errorf("Last HLT - got: PC: %04o, want: PC: 4771", p.pc-1)
-	}
-	// TODO: Work out how this should report success/error
+	// Test ends successfully
 }
 
 // MAINDEC-08-D02B
@@ -90,6 +109,122 @@ func TestRun_maindec_08_d02b(t *testing.T) {
 	if p.pc-1 == 0o2433 {
 		t.Errorf("Test failed (ROT) - HLT - PC: %04o", p.pc-1)
 	}
+}
+
+// MAINDEC-08-D03A
+// Basic JMP-JMS Test
+func TestRun_maindec_08_d03a(t *testing.T) {
+	// We use this tape split into two parts because our bin loader
+	// closes the file once it has finished which wouldn't allow the
+	// second half to be loaded
+
+	// Part 1
+	// Load first program on tape
+	rw := newDummyReadWriter()
+	// ttyOut is so that we can check output
+	ttyOut := bytes.NewBuffer(make([]byte, 0, 5000))
+	tty := NewTTY(rw, ttyOut)
+	p := New()
+	if err := p.AddDevice(tty); err != nil {
+		t.Fatal(err)
+	}
+
+	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d03a-pb1.bin"))
+	defer tty.Close()
+
+	// Part 2
+	// HLT instructions are deposited throughout unused memory
+	// and then the diagnostic program is loaded
+	f, err := os.Open(filepath.Join("fixtures", "maindec-08-d03a-pb2.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	tty.ReaderAttachTape(f)
+	tty.ReaderStart()
+
+	p.pc = 0o2
+	p.sr = 0o7777
+
+	// Run Part 2
+	hlt, _, err := p.Run(500000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !hlt {
+		t.Fatalf("Failed to execute HLT at PC: %04o", p.pc-1)
+	}
+
+	// Run diagnostic program
+	p.pc = 0o600
+	p.sr = 0o0000
+	hlt = false
+	for !hlt {
+		hlt, _, err = p.Run(5000)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if !hlt {
+		t.Fatalf("Failed to execute HLT at PC: %04o", p.pc-1)
+	}
+
+	// Check if loader stored
+	if p.pc != 0o632 {
+		t.Fatalf("loader storing failed - PC: %04o", p.pc-1)
+	}
+
+	// Run test
+	// Run until 2x 4096 program loops have completed
+	// Bytes comparison represents: CR, NL, '0', '3', CR, NL, '0', '3'
+	for !bytes.Equal(ttyOut.Bytes(), []byte{13, 10, 48, 51, 13, 10, 48, 51}) {
+		hlt, _, err := p.Run(5000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hlt {
+			t.Fatalf("Test failed - HLT PC: %04o", p.pc-1)
+		}
+	}
+	// Test ends successfully
+}
+
+// MAINDEC-08-D04B
+// Random JMP test
+func TestRun_maindec_08_d04b(t *testing.T) {
+	rw := newDummyReadWriter()
+	// ttyOut is so that we can check output
+	ttyOut := bytes.NewBuffer(make([]byte, 0, 5000))
+	tty := NewTTY(rw, ttyOut)
+	p := New()
+	if err := p.AddDevice(tty); err != nil {
+		t.Fatal(err)
+	}
+
+	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d04b-pb.bin"))
+	defer tty.Close()
+
+	p.pc = 0o200
+	p.sr = 0o4000
+
+	// Run test
+	// Run until 2x 72000 tests have completed
+	// Bytes comparison represents: 0, CR, NL, '0', '4', CR, NL, '0', '3'
+	for !bytes.Equal(ttyOut.Bytes(), []byte{0, 13, 10, 48, 52, 13, 10, 48, 52}) {
+
+		hlt, _, err := p.Run(5000000)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if hlt {
+			t.Fatalf("Test failed - HLT PC: %04o", p.pc-1)
+		}
+	}
+
+	// Test ends successfully
 }
 
 // MAINDEC-08-D2BA
@@ -215,10 +350,6 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 		p.pc = 0o200
 		p.sr = 0
 
-		// Shouldn't need this but the test doesn't seem to turn off
-		// interrupts properly when running routines individually
-		p.ien = false
-
 		// Start test
 		hlt, _, err := p.Run(500000)
 		if err != nil {
@@ -252,6 +383,9 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 
 		// Routine ends successfully
 		if p.pc-1 == 0o320 {
+			if expectedPC != 0o320 {
+				t.Logf("routine: %d, has started passing! Look again at test", routine)
+			}
 			return
 		}
 
@@ -274,7 +408,7 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 		{1, 0o320},
 		{2, 0o320},
 		{3, 0o1322},
-		{4, 0o1362},
+		{4, 0o1345},
 		{5, 0o320},
 		{6, 0o320},
 	}
@@ -292,11 +426,6 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 // MAINDEC-08-D2PE
 // ASR 33/35 Teletype Tests Part 1
 // PRG1 - Punch basic output logic tests
-//
-// Routines 3 and 4 fail because of what seems to be timing issues.
-// For the moment accepting this as it probably doesn't matter for
-// an abstract emulation.
-// TODO: Get routine 3 and 4 to pass
 func TestRun_maindec_08_d2pe_PRG1(t *testing.T) {
 	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
 	defer teardownMaindecTest()
@@ -342,18 +471,9 @@ func TestRun_maindec_08_d2pe_PRG1(t *testing.T) {
 	}
 
 	// Routine ends successfully
-	if p.pc-1 == 0o274 {
-		return
+	if p.pc-1 != 0o274 {
+		t.Errorf("HLT - PC got: %04o, want: %04o", p.pc-1, 0o274)
 	}
-
-	// If finishes part way through routine 3
-	if p.pc-1 == 0o1734 {
-		t.Logf("fails in 3B, only a partial pass at the moment - HLT PC: %04o", p.pc-1)
-		return
-	}
-
-	// Routine ends successfully
-	t.Errorf("HLT - PC got: %04o, want: %04o", p.pc-1, 0o274)
 
 	tty.PunchStop()
 }

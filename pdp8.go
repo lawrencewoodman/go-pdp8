@@ -255,9 +255,6 @@ func (p *PDP8) AddDevice(d device) error {
 func (p *PDP8) Run(cycles int) (bool, int, error) {
 	var err error
 	var hlt bool
-	// TODO: Work out most appropriate interrupt frequency
-	const cyclesPerInterrupt = 100
-	interruptCountdown := cyclesPerInterrupt
 
 	for cycles > 0 {
 		opCode, opAddr := p.fetch()
@@ -267,16 +264,13 @@ func (p *PDP8) Run(cycles int) (bool, int, error) {
 		}
 
 		if p.ien {
-			interruptCountdown--
-			if interruptCountdown == 0 {
-				interruptCountdown = cyclesPerInterrupt
-				for _, d := range p.devices {
-					if d.interrupt() {
-						p.mem[0] = p.pc
-						p.pc = 1
-						p.ien = false
-						break
-					}
+			for _, d := range p.devices {
+				if d.interrupt() {
+					//						fmt.Printf("interrupt PC: %04o\n", p.pc-1)
+					p.mem[0] = p.pc
+					p.pc = 1
+					p.ien = false
+					break
 				}
 			}
 		}
@@ -329,6 +323,9 @@ func (p *PDP8) fetch() (opCode uint, opAddr uint) {
 			opAddr = p.mem[opAddr]
 		}
 	}
+
+	// TODO: Add a switch to turn this off an on for debugging
+	//	fmt.Printf("PC: %04o, IR: %04o, opCode, %04o, opAddr: %04o\n", p.pc, p.mem[p.pc], opCode, opAddr)
 
 	p.pc = mask(p.pc + 1)
 	return opCode, opAddr

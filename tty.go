@@ -22,15 +22,17 @@ import (
 )
 
 type TTY struct {
-	ttiReadyFlag     bool // TTI keyboard
-	ttiInputBuffer   byte // A value in the input buffer
-	ttiIsReaderInput bool // True if paper tape reader is being used for input
-	ttiIsPunchOutput bool // True if paper tape punch is being used for output
-	ttiIsReaderEOF   bool // True if no more tape to read by reader
-	ttiIsReaderRun   bool // If reader should run
-	ttiReaderPos     int  // The position of the reader on the tape
-	ttoReadyFlag     bool // TTO printer
-	interruptWaiting bool // If an interrupt is waiting to be processed
+	ttiReadyFlag        bool // TTI keyboard
+	ttiInputBuffer      byte // A value in the input buffer
+	ttiInterruptWaiting bool // If an interrupt is waiting for TTI to be processed
+	ttiIsReaderInput    bool // True if paper tape reader is being used for input
+	ttiIsPunchOutput    bool // True if paper tape punch is being used for output
+	ttiIsReaderEOF      bool // True if no more tape to read by reader
+	ttiIsReaderRun      bool // If reader should run
+	ttiReaderPos        int  // The position of the reader on the tape
+	ttoInterruptWaiting bool // If an interrupt is waiting for TTO to be processed
+	ttoReadyFlag        bool // TTO printer
+	ttoPendingReadyFlag bool // If the TTO ready flag is waiting to be turned on
 
 	curin   io.Reader // The current input source
 	curout  io.Writer // The current output destination
@@ -104,8 +106,7 @@ func (t *TTY) PunchStop() {
 func (t *TTY) interrupt() bool {
 	// TODO: do something with poll error
 	t.poll()
-	defer func() { t.interruptWaiting = false }()
-	return t.interruptWaiting
+	return t.ttiInterruptWaiting || t.ttoInterruptWaiting
 }
 
 // TODO: rename
@@ -119,7 +120,7 @@ func (t *TTY) read() error {
 	}
 	if n == 1 {
 		t.ttiInputBuffer = key[0]
-		t.interruptWaiting = true
+		t.ttiInterruptWaiting = true
 		t.ttiReadyFlag = true
 		if t.ttiIsReaderInput {
 			t.ttiReaderPos++
@@ -143,9 +144,10 @@ func (t *TTY) poll() error {
 		err = t.read()
 		t.ttiIsReaderRun = false
 	}
-
-	if t.ttoReadyFlag {
-		t.interruptWaiting = true
+	if t.ttoPendingReadyFlag {
+		t.ttoPendingReadyFlag = false
+		t.ttoInterruptWaiting = true
+		t.ttoReadyFlag = true
 	}
 	return err
 }
@@ -175,8 +177,9 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 
 		// KCC - Clear AC and Flag and run reader
 		if (ir & 0o2) == 0o2 {
-			t.ttiReadyFlag = false
 			t.ttiIsReaderRun = true
+			t.ttiReadyFlag = false
+			t.ttiInterruptWaiting = false
 			// The reader is told to run but it won't have read anything
 			// by the time this and any other current microcoded
 			// instruction finishes
@@ -202,6 +205,7 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 		}
 		if (ir & 0o2) == 0o2 { // TCF  - Clear Flag
 			t.ttoReadyFlag = false
+			t.ttoInterruptWaiting = false
 		}
 		if (ir & 0o4) == 0o4 { // TPC  - Print static
 			ttyMask := uint(0o177) // Use 7 bit mask for keyboard
@@ -217,7 +221,7 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 			if n != 1 {
 				return pc, lac, errors.New("TTY: write failed")
 			}
-			t.ttoReadyFlag = true
+			t.ttoPendingReadyFlag = true
 		}
 	}
 	// TODO: find better way of updating pc and lac
