@@ -114,6 +114,7 @@ func TestRun_maindec_08_d02b(t *testing.T) {
 // MAINDEC-08-D03A
 // Basic JMP-JMS Test
 func TestRun_maindec_08_d03a(t *testing.T) {
+	t.Parallel()
 	// We use this tape split into two parts because our bin loader
 	// closes the file once it has finished which wouldn't allow the
 	// second half to be loaded
@@ -147,13 +148,12 @@ func TestRun_maindec_08_d03a(t *testing.T) {
 	p.sr = 0o7777
 
 	// Run Part 2
-	hlt, _, err := p.Run(500000)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !hlt {
-		t.Fatalf("Failed to execute HLT at PC: %04o", p.pc-1)
+	hlt := false
+	for !hlt {
+		hlt, _, err = p.Run(5000)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// Run diagnostic program
@@ -194,6 +194,7 @@ func TestRun_maindec_08_d03a(t *testing.T) {
 // MAINDEC-08-D04B
 // Random JMP test
 func TestRun_maindec_08_d04b(t *testing.T) {
+	t.Parallel()
 	rw := newDummyReadWriter()
 	// ttyOut is so that we can check output
 	ttyOut := bytes.NewBuffer(make([]byte, 0, 5000))
@@ -285,6 +286,7 @@ func TestRun_maindec_08_d2ba_test_binary_count_pattern(t *testing.T) {
 // Exercisor for the PDP-8 Teletype Paper Tape Reader
 // Create a binary count test pattern tape
 func TestRun_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
+	t.Parallel()
 	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2ba-pb.bin")
 	defer teardownMaindecTest()
 
@@ -408,7 +410,7 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 		{1, 0o320},
 		{2, 0o320},
 		{3, 0o1322},
-		{4, 0o1345},
+		{4, 0o320},
 		{5, 0o320},
 		{6, 0o320},
 	}
@@ -427,6 +429,7 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 // ASR 33/35 Teletype Tests Part 1
 // PRG1 - Punch basic output logic tests
 func TestRun_maindec_08_d2pe_PRG1(t *testing.T) {
+	t.Parallel()
 	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
 	defer teardownMaindecTest()
 

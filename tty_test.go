@@ -3,7 +3,11 @@ package pdp8
 import (
 	"bytes"
 	"testing"
+	"time"
 )
+
+// TODO: Using ReadDelay in these tests, need to do tests
+// TODO: without it to show it working
 
 func tryIOT(t *testing.T, tty *TTY, ir uint, pc uint, lac uint, wantPC uint, wantLac uint) {
 	t.Helper()
@@ -52,6 +56,7 @@ func TestIOT_tape_KRS_after_KCC(t *testing.T) {
 
 	// Check that KCC advances tape
 	tryIOT(t, tty, KCC, 0, 0, 0, 0)
+	time.Sleep(ReadDelay * time.Microsecond)
 
 	tryIOT(t, tty, KRS, 0, 0, 0, 0o73)
 
@@ -63,6 +68,7 @@ func TestIOT_tape_KRS_after_KCC(t *testing.T) {
 
 	// Advance tape
 	tryIOT(t, tty, KCC, 0, 0, 0, 0)
+	time.Sleep(ReadDelay * time.Microsecond)
 
 	// Check that we read the next value
 	tryIOT(t, tty, KRS, 0, 0, 0, 0o10)
@@ -82,7 +88,11 @@ func TestIOT_tape_KRB(t *testing.T) {
 	tty.ReaderStart()
 
 	tryIOT(t, tty, KRB, 0, 0, 0, 0)
+	time.Sleep(ReadDelay * time.Microsecond)
+
 	tryIOT(t, tty, KRB, 0, 0, 0, 0o73)
+	time.Sleep(ReadDelay * time.Microsecond)
+
 	tryIOT(t, tty, KRB, 0, 0, 0, 0o10)
 
 	tty.ReaderStop()
@@ -121,6 +131,8 @@ func TestIOT_tape_KSF_skip_if_ready(t *testing.T) {
 	tty.ReaderStart()
 
 	tryIOT(t, tty, KCC, 0, 0, 0, 0)
+	time.Sleep(ReadDelay * time.Microsecond)
+
 	tryIOT(t, tty, KSF, 0, 0, 1, 0)
 	tryIOT(t, tty, KSF, 1, 0, 2, 0)
 	tryIOT(t, tty, KSF, 4, 0, 5, 0)

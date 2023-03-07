@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 )
 
 type TTY struct {
@@ -29,6 +30,9 @@ type TTY struct {
 	ttiIsPunchOutput    bool // True if paper tape punch is being used for output
 	ttiIsReaderEOF      bool // True if no more tape to read by reader
 	ttiIsReaderRun      bool // If reader should run
+	// When the last read operation was successful
+	// This is used to prevent reads happening too quickly
+	ttiLastRead         time.Time
 	ttiReaderPos        int  // The position of the reader on the tape
 	ttoInterruptWaiting bool // If an interrupt is waiting for TTO to be processed
 	ttoReadyFlag        bool // TTO printer
@@ -42,9 +46,15 @@ type TTY struct {
 	tapeout io.Writer // Paper tape punch output
 }
 
+// The delay between reads in Microseconds
+// TODO: should this be a constant or in the TTY struct?
+const ReadDelay = 120
+
 func NewTTY(conin io.Reader, conout io.Writer) *TTY {
-	return &TTY{conin: conin, conout: conout,
-		curin: conin, curout: conout}
+	tty := &TTY{conin: conin, conout: conout,
+		curin: conin, curout: conout,
+		ttiLastRead: time.Now()}
+	return tty
 }
 
 // Closes device but doesn't close any readers/writers
@@ -111,6 +121,10 @@ func (t *TTY) interrupt() bool {
 
 // TODO: rename
 func (t *TTY) read() error {
+	// Delay to prevent reading too quickly
+	if time.Now().Sub(t.ttiLastRead).Microseconds() < ReadDelay {
+		return nil
+	}
 	key := make([]byte, 1)
 	n, err := t.curin.Read(key)
 	if err == io.EOF {
@@ -122,6 +136,8 @@ func (t *TTY) read() error {
 		t.ttiInputBuffer = key[0]
 		t.ttiInterruptWaiting = true
 		t.ttiReadyFlag = true
+		t.ttiIsReaderRun = false
+		t.ttiLastRead = time.Now()
 		if t.ttiIsReaderInput {
 			t.ttiReaderPos++
 		} else {
@@ -142,7 +158,6 @@ func (t *TTY) poll() error {
 	if (t.ttiIsReaderInput && t.ttiIsReaderRun) ||
 		(!t.ttiIsReaderInput && !t.ttiReadyFlag) {
 		err = t.read()
-		t.ttiIsReaderRun = false
 	}
 	if t.ttoPendingReadyFlag {
 		t.ttoPendingReadyFlag = false
