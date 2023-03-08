@@ -36,7 +36,6 @@ type TTY struct {
 	ttoInterruptWaiting bool // If an interrupt is waiting for TTO to be processed
 	ttoIsPunchOutput    bool // True if paper tape punch is being used for output
 	ttoReadyFlag        bool // TTO printer is ready for a new value
-	ttoPendingReadyFlag bool // If the TTO ready flag is waiting to be turned on
 
 	curin   io.Reader // The current input source
 	curout  io.Writer // The current output destination
@@ -154,11 +153,6 @@ func (t *TTY) poll() error {
 			err = t.read()
 		}
 	}
-	if t.ttoPendingReadyFlag {
-		t.ttoPendingReadyFlag = false
-		t.ttoInterruptWaiting = true
-		t.ttoReadyFlag = true
-	}
 	return err
 }
 
@@ -216,21 +210,19 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 			krs()
 		}
 
-		if (ir & 0o7) == 0o6 { // KRB - Read static and run reader
+		if (ir & 0o7) == 0o6 { // KRB - Read and Begin next read
 			kcc()
 			krs()
 		}
 	case 0o4: // Teleprinter
-		if (ir & 0o1) == 0o1 { // TSF  - Skip if ready
-			if t.ttoReadyFlag {
-				pc = mask(pc + 1)
-			}
-		}
-		if (ir & 0o2) == 0o2 { // TCF  - Clear Flag
+		// TCF  - Clear Flag
+		tcf := func() {
 			t.ttoReadyFlag = false
 			t.ttoInterruptWaiting = false
 		}
-		if (ir & 0o4) == 0o4 { // TPC  - Print static
+
+		// TPC  - Print Character
+		tpc := func() error {
 			// Use 7 bit mask for keyboard
 			ttyMask := uint(0o177)
 			if t.ttoIsPunchOutput {
@@ -240,14 +232,32 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 
 			n, err := t.curout.Write([]byte{byte(lac & ttyMask)})
 			if err != nil {
-				return pc, lac, fmt.Errorf("TTY: %s", err)
+				return fmt.Errorf("TTY: %s", err)
 			}
 			if n != 1 {
-				return pc, lac, errors.New("TTY: write failed")
+				return errors.New("TTY: write failed")
 			}
-			// Flag won't become ready until a TPC has been executed
-			// and has output it's value
-			t.ttoPendingReadyFlag = true
+			// Flag won't become ready until a TPC/TLS has been
+			// executed and has output it's value
+			t.ttoReadyFlag = true
+			t.ttoInterruptWaiting = true
+			return nil
+		}
+
+		if (ir & 0o7) == 0o1 { // TSF  - Skip if ready
+			if t.ttoReadyFlag {
+				pc = mask(pc + 1)
+			}
+		}
+		if (ir & 0o7) == 0o2 { // TCF  - Clear Flag
+			tcf()
+		}
+		if (ir & 0o7) == 0o4 { // TPC  - Print Character
+			err = tpc()
+		}
+		if (ir & 0o7) == 0o6 { // TLS  - Load and Start
+			tcf()
+			err = tpc()
 		}
 	}
 	// TODO: find better way of updating pc and lac
