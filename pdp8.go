@@ -255,6 +255,7 @@ func (p *PDP8) AddDevice(d device) error {
 func (p *PDP8) Run(cycles int) (bool, int, error) {
 	var err error
 	var hlt bool
+	var isInterrupt bool
 
 	for cycles > 0 {
 		opCode, opAddr := p.fetch()
@@ -265,8 +266,11 @@ func (p *PDP8) Run(cycles int) (bool, int, error) {
 
 		if p.ien {
 			for _, d := range p.devices {
-				if d.interrupt() {
-					//						fmt.Printf("interrupt PC: %04o\n", p.pc-1)
+				isInterrupt, err = d.interrupt()
+				if err != nil {
+					break
+				}
+				if isInterrupt {
 					p.mem[0] = p.pc
 					p.pc = 1
 					p.ien = false

@@ -108,10 +108,9 @@ func (t *TTY) PunchStop() {
 }
 
 // Return if there is an interrupt raised
-func (t *TTY) interrupt() bool {
-	// TODO: do something with poll error
-	t.poll()
-	return t.ttiInterruptWaiting || t.ttoInterruptWaiting
+func (t *TTY) interrupt() (bool, error) {
+	err := t.poll()
+	return t.ttiInterruptWaiting || t.ttoInterruptWaiting, err
 }
 
 // TODO: rename

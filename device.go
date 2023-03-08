@@ -16,7 +16,7 @@ type device interface {
 	// TODO: Export these methods?
 	// Is an interrupt raised?
 	// TODO: Rename to isInterrupt() ?
-	interrupt() bool
+	interrupt() (bool, error)
 	// Returns PC, LAC, error
 	iot(ir uint, pc uint, lac uint) (uint, uint, error)
 	// Return a slice of device numbers for the device
