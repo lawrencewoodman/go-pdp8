@@ -1,6 +1,6 @@
 # Fixtures
 
-In order to test the emulator the fixtures/ directory needs a number of paper tape images.  Below we can see where to obtain them.
+In order to test the emulator the fixtures/ directory needs a number of paper tape images.
 
 To download these images we can use cmd/downloadfixtures
 
