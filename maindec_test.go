@@ -1,3 +1,7 @@
+/*
+ * Test the emulation using DEC's MAINDEC tests
+ */
+
 package pdp8
 
 import (
@@ -6,8 +10,6 @@ import (
 	"path/filepath"
 	"testing"
 )
-
-// TODO: Move all these maindec tests into a maindec_test.go?
 
 // Setup everything neaded to load a MAINDEC test from fixtures/
 // Run returned teardownMaindecTest after each test
