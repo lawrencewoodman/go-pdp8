@@ -456,20 +456,8 @@ func (p *PDP8) opr() bool {
 			return true
 		}
 	} else { // Group 3
-		// TODO: Remove as probably not going to emulate a PDP-8/E?
-		// TODO: But then again what about on a PDP-8/I?
-		// We store MQ so that MQA and MQL can exchange MQ and AC
-		t := p.mq
-		if (p.ir & 0o201) == 0o201 { // CLA
-			p.lac &= 0o10000
-		}
-		if (p.ir & 0o21) == 0o21 { // MQL
-			p.mq = p.lac & 0o7777
-			p.lac &= 0o10000
-		}
-		if (p.ir & 0o101) == 0o101 { // MQA
-			p.lac |= t
-		}
+		// The EAE isn't implemented and
+		// we're not emulating a PDP-8/E
 	}
 	return false
 }
