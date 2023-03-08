@@ -178,8 +178,10 @@ func TestRun_maindec_08_d03a(t *testing.T) {
 
 	// Run test
 	// Run until 2x 4096 program loops have completed
-	// Bytes comparison represents: CR, NL, '0', '3', CR, NL, '0', '3'
-	for !bytes.Equal(ttyOut.Bytes(), []byte{13, 10, 48, 51, 13, 10, 48, 51}) {
+	// Bytes comparison represents:
+	//  CR, NL, '0', '3', CR, NL, '0', '3'
+	ttyOutWant := []byte{13, 10, 48, 51, 13, 10, 48, 51}
+	for !bytes.Equal(ttyOut.Bytes(), ttyOutWant) {
 		hlt, _, err := p.Run(5000)
 		if err != nil {
 			t.Fatal(err)
@@ -207,13 +209,55 @@ func TestRun_maindec_08_d04b(t *testing.T) {
 	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d04b-pb.bin"))
 	defer tty.Close()
 
+	// Halt on error
 	p.pc = 0o200
 	p.sr = 0o4000
 
 	// Run test
 	// Run until 2x 72000 tests have completed
-	// Bytes comparison represents: 0, CR, NL, '0', '4', CR, NL, '0', '3'
-	for !bytes.Equal(ttyOut.Bytes(), []byte{0, 13, 10, 48, 52, 13, 10, 48, 52}) {
+	// Bytes comparison represents:
+	//  0, CR, NL, '0', '4', CR, NL, '0', '3'
+	ttyOutWant := []byte{0, 13, 10, 48, 52, 13, 10, 48, 52}
+	for !bytes.Equal(ttyOut.Bytes(), ttyOutWant) {
+		hlt, _, err := p.Run(5000000)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if hlt {
+			t.Fatalf("Test failed - HLT PC: %04o", p.pc-1)
+		}
+	}
+
+	// Test ends successfully
+}
+
+// MAINDEC-08-D05B
+// Random JMP-JMS test
+func TestRun_maindec_08_d05b(t *testing.T) {
+	t.Parallel()
+
+	rw := newDummyReadWriter()
+	// ttyOut is so that we can check output
+	ttyOut := bytes.NewBuffer(make([]byte, 0, 5000))
+	tty := NewTTY(rw, ttyOut)
+	p := New()
+	if err := p.AddDevice(tty); err != nil {
+		t.Fatal(err)
+	}
+	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d05b-pb.bin"))
+	defer tty.Close()
+
+	// Halt on error
+	p.pc = 0o200
+	p.sr = 0o4000
+
+	// Run test
+	// Run until 2x 61000 tests have completed
+	// Bytes comparison represents:
+	//  DEL, CR, NL, '0', '5', CR, NL, '0', '5'
+	ttyOutWant := []byte{127, 13, 10, 48, 53, 13, 10, 48, 53}
+	for !bytes.Equal(ttyOut.Bytes(), ttyOutWant) {
 
 		hlt, _, err := p.Run(5000000)
 		if err != nil {
@@ -539,4 +583,13 @@ func TestRun_maindec_08_d2pe_PRG2(t *testing.T) {
 	}
 
 	tty.ReaderStop()
+}
+
+// MAINDEC-08-D2QD
+// ASR 33/35 Teletype Tests Part 2
+func TestRun_maindec_08_d2qd(t *testing.T) {
+	// TODO: Implement this
+	// TODO: Sources: http://www.pdp8online.com/pdp8cgi/query_docs/tifftopdf.pl/pdp8docs/maindec-08-d2qd-d.pdf
+	// TODO: https://deramp.com/downloads/mfe_archive/011-Digital%20Equipment%20Corporation/01%20DEC%20PDP-8%20Family%20Software/03%20MAINDEC%20Maintenance%20progams/MAINDEC%2008/MAINDEC-08%20D2QD%20ASR33%20ASR35%20Test%20Family%20Part%202%20/
+	t.Skip("Not currently implemented")
 }
