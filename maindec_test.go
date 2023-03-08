@@ -274,6 +274,54 @@ func TestRun_maindec_08_d05b(t *testing.T) {
 	// Test ends successfully
 }
 
+// MAINDEC-08-D07B
+// Random ISZ test
+func TestRun_maindec_08_d07b(t *testing.T) {
+	rw := newDummyReadWriter()
+	// ttyOut is so that we can check output
+	ttyOut := bytes.NewBuffer(make([]byte, 0, 5000))
+	tty := NewTTY(rw, ttyOut)
+	p := New()
+	if err := p.AddDevice(tty); err != nil {
+		t.Fatal(err)
+	}
+	loadBINTape(t, p, tty, filepath.Join("fixtures", "maindec-08-d07b-pb.bin"))
+	defer tty.Close()
+
+	runTest := func() {
+		p.pc = 0o37
+		// Run until 2x 3200 tests have completed
+		// Bytes comparison represents:
+		//  '0', '07, CR, NL, NL, DEL
+		//  '0', '07, CR, NL, NL, DEL
+		ttyOutWant := []byte{
+			48, 55, 13, 10, 10, 127,
+			48, 55, 13, 10, 10, 127,
+		}
+		for !bytes.Equal(ttyOut.Bytes(), ttyOutWant) {
+
+			hlt, _, err := p.Run(500)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if hlt {
+				t.Fatalf("Test failed - HLT PC: %04o", p.pc-1)
+			}
+		}
+	}
+
+	// Part 1, halt on error
+	p.sr = 0o4000
+	runTest()
+
+	// Part 2, halt on error
+	p.sr = 0o4040
+	runTest()
+
+	// Test ends successfully
+}
+
 // MAINDEC-08-D2BA
 // Exercisor for the PDP-8 Teletype Paper Tape Reader
 // Test reader against binary count test pattern
