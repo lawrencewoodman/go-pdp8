@@ -232,6 +232,8 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 			if n != 1 {
 				return pc, lac, errors.New("TTY: write failed")
 			}
+			// Flag won't become ready until a TPC has been executed
+			// and has output it's value
 			t.ttoPendingReadyFlag = true
 		}
 	}
