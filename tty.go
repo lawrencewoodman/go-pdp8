@@ -19,23 +19,23 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 )
 
 type TTY struct {
-	ttiReadyFlag        bool // TTI keyboard
 	ttiInputBuffer      byte // A value in the input buffer
 	ttiInterruptWaiting bool // If an interrupt is waiting for TTI to be processed
 	ttiIsReaderInput    bool // True if paper tape reader is being used for input
-	ttiIsPunchOutput    bool // True if paper tape punch is being used for output
 	ttiIsReaderEOF      bool // True if no more tape to read by reader
 	ttiIsReaderRun      bool // If reader should run
-	// When the last read operation was successful
-	// This is used to prevent reads happening too quickly
-	ttiLastRead         time.Time
 	ttiReaderPos        int  // The position of the reader on the tape
+	ttiReadyFlag        bool // TTI keyboard/reader has read a new value
+
+	// This is used to prevent reads happening too quickly
+	ttiPendingReadyFlag bool // If the TTI ready flag is waiting to be turned on
+
 	ttoInterruptWaiting bool // If an interrupt is waiting for TTO to be processed
-	ttoReadyFlag        bool // TTO printer
+	ttoIsPunchOutput    bool // True if paper tape punch is being used for output
+	ttoReadyFlag        bool // TTO printer is ready for a new value
 	ttoPendingReadyFlag bool // If the TTO ready flag is waiting to be turned on
 
 	curin   io.Reader // The current input source
@@ -46,14 +46,9 @@ type TTY struct {
 	tapeout io.Writer // Paper tape punch output
 }
 
-// The delay between reads in Microseconds
-// TODO: should this be a constant or in the TTY struct?
-const ReadDelay = 120
-
 func NewTTY(conin io.Reader, conout io.Writer) *TTY {
 	tty := &TTY{conin: conin, conout: conout,
-		curin: conin, curout: conout,
-		ttiLastRead: time.Now()}
+		curin: conin, curout: conout}
 	return tty
 }
 
@@ -100,7 +95,7 @@ func (t *TTY) PunchAttachTape(tapeout io.Writer) {
 
 // Tell the paper tape punch to start punching the tape
 func (t *TTY) PunchStart() {
-	t.ttiIsPunchOutput = true
+	t.ttoIsPunchOutput = true
 	t.curout = t.tapeout
 	// TODO: Find out if printer is disabled during punching
 	// TODO: It seems obvious that it must be, but check
@@ -108,7 +103,7 @@ func (t *TTY) PunchStart() {
 
 // Tell the paper tape pucnh to stop punching the tape
 func (t *TTY) PunchStop() {
-	t.ttiIsPunchOutput = false
+	t.ttoIsPunchOutput = false
 	t.curout = t.conout
 }
 
@@ -121,10 +116,6 @@ func (t *TTY) interrupt() bool {
 
 // TODO: rename
 func (t *TTY) read() error {
-	// Delay to prevent reading too quickly
-	if time.Now().Sub(t.ttiLastRead).Microseconds() < ReadDelay {
-		return nil
-	}
 	key := make([]byte, 1)
 	n, err := t.curin.Read(key)
 	if err == io.EOF {
@@ -134,10 +125,8 @@ func (t *TTY) read() error {
 	}
 	if n == 1 {
 		t.ttiInputBuffer = key[0]
-		t.ttiInterruptWaiting = true
-		t.ttiReadyFlag = true
+		t.ttiPendingReadyFlag = true
 		t.ttiIsReaderRun = false
-		t.ttiLastRead = time.Now()
 		if t.ttiIsReaderInput {
 			t.ttiReaderPos++
 		} else {
@@ -155,9 +144,16 @@ func (t *TTY) read() error {
 // Checks for activity on device and run reader if requested
 func (t *TTY) poll() error {
 	var err error
-	if (t.ttiIsReaderInput && t.ttiIsReaderRun) ||
-		(!t.ttiIsReaderInput && !t.ttiReadyFlag) {
-		err = t.read()
+	if t.ttiPendingReadyFlag {
+		t.ttiReadyFlag = true
+		t.ttiPendingReadyFlag = false
+		t.ttiInterruptWaiting = true
+		return nil
+	} else {
+		if (t.ttiIsReaderInput && t.ttiIsReaderRun) ||
+			(!t.ttiIsReaderInput && !t.ttiReadyFlag) {
+			err = t.read()
+		}
 	}
 	if t.ttoPendingReadyFlag {
 		t.ttoPendingReadyFlag = false
@@ -195,6 +191,7 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 			t.ttiIsReaderRun = true
 			t.ttiReadyFlag = false
 			t.ttiInterruptWaiting = false
+
 			// The reader is told to run but it won't have read anything
 			// by the time this and any other current microcoded
 			// instruction finishes
@@ -224,7 +221,7 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 		}
 		if (ir & 0o4) == 0o4 { // TPC  - Print static
 			ttyMask := uint(0o177) // Use 7 bit mask for keyboard
-			if t.ttiIsPunchOutput {
+			if t.ttoIsPunchOutput {
 				// Use 8-bit mask for punch
 				ttyMask = uint(0o377)
 			}

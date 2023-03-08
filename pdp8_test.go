@@ -328,26 +328,29 @@ func TestRun_maindec_08_d2ba_punch_binary_count_tape(t *testing.T) {
 // ASR 33/35 Teletype Tests Part 1
 // PRG0 - Reader basic input logic tests
 //
-// Routines 3 and 4 fail because of what seems to be timing issues.
-// For the moment accepting this as it probably doesn't matter for
-// an abstract emulation.
-// TODO: Get routine 3 and 4 to pass
+// Routine 3 fails because of a timing issue, not because
+// a problem with KSF.  This is acceptable because the
+// alternative would be to slow down TTY when it is
+// unlikely that any normal program would trip up
+// because of this issue.
 func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 	t.Parallel()
-	p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
-	defer teardownMaindecTest()
-
-	// Binary count test pattern tape
-	f, err := os.Open(filepath.Join("fixtures", "maindec-00-d2g3-pt"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	tty.ReaderAttachTape(f)
-	tty.ReaderStart()
 
 	runTestPRG0Routine := func(routine uint, expectedPC uint) {
+		p, tty, teardownMaindecTest := setupMaindecTest(t, "maindec-08-d2pe-pb.bin")
+		defer teardownMaindecTest()
+
+		// Binary count test pattern tape
+		f, err := os.Open(filepath.Join("fixtures", "maindec-00-d2g3-pt"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+
+		tty.ReaderAttachTape(f)
+		tty.ReaderStart()
+		defer tty.ReaderStop()
+
 		// PRG0
 		p.pc = 0o200
 		p.sr = 0
@@ -416,13 +419,9 @@ func TestRun_maindec_08_d2pe_PRG0(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		if _, err := f.Seek(0, 0); err != nil {
-			t.Fatal(err)
-		}
 		runTestPRG0Routine(c.routine, c.expectedPC)
 	}
 
-	tty.ReaderStop()
 }
 
 // MAINDEC-08-D2PE

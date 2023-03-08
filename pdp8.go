@@ -325,7 +325,7 @@ func (p *PDP8) fetch() (opCode uint, opAddr uint) {
 	}
 
 	// TODO: Add a switch to turn this off an on for debugging
-	//	fmt.Printf("PC: %04o, IR: %04o, opCode, %04o, opAddr: %04o\n", p.pc, p.mem[p.pc], opCode, opAddr)
+	// fmt.Printf("PC: %04o, IR: %04o, opCode, %04o, opAddr: %04o\n", p.pc, p.mem[p.pc], opCode, opAddr)
 
 	p.pc = mask(p.pc + 1)
 	return opCode, opAddr
