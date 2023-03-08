@@ -178,15 +178,8 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 	device := (ir >> 3) & 0o77
 	switch device {
 	case 0o3: // Keyboard
-		// KSF - Skip if ready
-		if (ir & 0o1) == 0o1 {
-			if t.ttiReadyFlag {
-				pc = mask(pc + 1)
-			}
-		}
-
 		// KCC - Clear AC and Flag and run reader
-		if (ir & 0o2) == 0o2 {
+		kcc := func() {
 			t.ttiIsReaderRun = true
 			t.ttiReadyFlag = false
 			t.ttiInterruptWaiting = false
@@ -198,7 +191,7 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 		}
 
 		// KRS - Read static
-		if (ir & 0o4) == 0o4 {
+		krs := func() {
 			// OR the key with the lower 8 bits of AC without changing L
 			lac |= (uint(t.ttiInputBuffer) & 0o377)
 
@@ -207,6 +200,25 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 				// TODO: Check this is correct
 				lac |= 0o200
 			}
+		}
+
+		if (ir & 0o7) == 0o1 { // KSF - Skip if ready
+			if t.ttiReadyFlag {
+				pc = mask(pc + 1)
+			}
+		}
+
+		if (ir & 0o7) == 0o2 { // KCC - Clear AC and Flag and run reader
+			kcc()
+		}
+
+		if (ir & 0o7) == 0o4 { // KRS - Read static
+			krs()
+		}
+
+		if (ir & 0o7) == 0o6 { // KRB - Read static and run reader
+			kcc()
+			krs()
 		}
 	case 0o4: // Teleprinter
 		if (ir & 0o1) == 0o1 { // TSF  - Skip if ready
@@ -219,7 +231,8 @@ func (t *TTY) iot(ir uint, pc uint, lac uint) (uint, uint, error) {
 			t.ttoInterruptWaiting = false
 		}
 		if (ir & 0o4) == 0o4 { // TPC  - Print static
-			ttyMask := uint(0o177) // Use 7 bit mask for keyboard
+			// Use 7 bit mask for keyboard
+			ttyMask := uint(0o177)
 			if t.ttoIsPunchOutput {
 				// Use 8-bit mask for punch
 				ttyMask = uint(0o377)
