@@ -425,11 +425,6 @@ func (p *PDP8) opr() bool {
 			p.lac = lmask((p.lac >> 12) | (p.lac << 1))
 		case 0o4: // RAL
 			p.lac = lmask((p.lac >> 12) | (p.lac << 1))
-		case 0o2: // BSW
-			// TODO: Should this be able to be called with
-			// TODO: one of: RTR, RAR, RTL, RAL
-			p.lac = (p.lac & 0o10000) |
-				((p.lac >> 6) & 0o77) | ((p.lac << 6) & 0o7700)
 		}
 	} else if (p.ir & 0o1) != 0o1 { // Group 2
 		var sv uint
