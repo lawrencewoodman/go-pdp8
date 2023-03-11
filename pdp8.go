@@ -258,8 +258,7 @@ func (p *PDP8) Run(cycles int) (bool, int, error) {
 	var isInterrupt bool
 
 	for cycles > 0 {
-		opCode, opAddr := p.fetch()
-		hlt, err = p.execute(opCode, opAddr)
+		hlt, err = p.Step()
 		if err != nil || hlt {
 			break
 		}
@@ -289,6 +288,12 @@ func (p *PDP8) Run(cycles int) (bool, int, error) {
 		cycles--
 	}
 	return hlt, cycles, err
+}
+
+// Step Executes one instruction and moves to the next
+func (p *PDP8) Step() (bool, error) {
+	opCode, opAddr := p.fetch()
+	return p.execute(opCode, opAddr)
 }
 
 // Set Program Counter
